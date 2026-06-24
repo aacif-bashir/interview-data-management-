@@ -2,12 +2,6 @@ import mongoose from "mongoose";
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
-if (!MONGODB_URI) {
-  throw new Error(
-    "Missing MONGODB_URI environment variable. Set it in .env.local (see .env.example)."
-  );
-}
-
 /**
  * Cache the connection on `globalThis` so that:
  *  - During development, Next.js HMR doesn't open a new connection on every
@@ -35,6 +29,12 @@ if (!globalThis._mongooseCache) {
  * before issuing queries. Returns the shared mongoose instance.
  */
 export async function dbConnect(): Promise<typeof mongoose> {
+  if (!MONGODB_URI) {
+    throw new Error(
+      "Missing MONGODB_URI environment variable. Set it in .env.local (see .env.example)."
+    );
+  }
+
   if (cached.conn) {
     return cached.conn;
   }

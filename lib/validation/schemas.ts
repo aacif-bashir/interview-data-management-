@@ -1,10 +1,12 @@
 import { z } from "zod";
 import { QUESTION_STATUSES } from "@/types";
 
-/** A 24-char hex MongoDB ObjectId. */
+/** A Firestore document ID (or any non-empty string ID up to 128 chars). */
 export const objectId = z
   .string()
-  .regex(/^[a-f\d]{24}$/i, "Invalid id");
+  .min(1, "Invalid id")
+  .max(128, "Invalid id")
+  .regex(/^[\w-]+$/, "Invalid id");
 
 export const statusSchema = z.enum(QUESTION_STATUSES);
 
