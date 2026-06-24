@@ -326,6 +326,8 @@ export async function listQuestions(
 
   // ── Single folder (or no folder filter) — native Firestore pagination ─────
 
+  const hasDateFilter = Boolean(filters.dateFrom || filters.dateTo);
+
   let query: FirebaseFirestore.Query = questionsCol();
   if (folderIds && folderIds.length === 1) {
     query = query.where("folderId", "==", folderIds[0]);
@@ -340,21 +342,48 @@ export async function listQuestions(
     query = query.where("tags", "array-contains", normalizeTags(filters.tags)[0]);
   }
   if (filters.dateFrom) {
-    query = query.where(
-      "createdAt",
-      ">=",
-      new Date(filters.dateFrom)
-    );
+    query = query.where("createdAt", ">=", new Date(filters.dateFrom));
   }
   if (filters.dateTo) {
-    query = query.where(
-      "createdAt",
-      "<=",
-      new Date(filters.dateTo)
-    );
+    query = query.where("createdAt", "<=", new Date(filters.dateTo));
   }
 
-  query = query.orderBy("order").orderBy("__name__");
+  if (hasDateFilter) {
+    // Firestore rule: the first orderBy must match the inequality filter field.
+    // Sort by createdAt here; we re-sort by `order` client-side after fetching.
+    query = query.orderBy("createdAt");
+
+    // Offset-based cursor for date-filtered pages (order-based cursor invalid here).
+    const skip = filters.cursor ? Number(filters.cursor) || 0 : 0;
+    query = query.limit(skip + limit + 1);
+
+    const snap = await query.get();
+    let docs = snap.docs.slice(skip);
+
+    // Post-filter for additional tags (beyond the first).
+    if (filters.tags && filters.tags.length > 1) {
+      const normalized = normalizeTags(filters.tags);
+      docs = docs.filter((d) => {
+        const dt = (d.data() as QuestionDoc).tags ?? [];
+        return normalized.every((t) => dt.includes(t));
+      });
+    }
+
+    // Re-sort by order ascending (client-side).
+    docs.sort((a, b) => (a.data() as QuestionDoc).order - (b.data() as QuestionDoc).order);
+
+    const hasMore = docs.length > limit;
+    const page = hasMore ? docs.slice(0, limit) : docs;
+
+    return {
+      items: page.map(docToListItem),
+      nextCursor: hasMore ? String(skip + limit) : null,
+      total: null,
+    };
+  }
+
+  // No date filter — order by `order` for stable cursor pagination.
+  query = query.orderBy("order");
 
   // Apply cursor.
   if (filters.cursor) {
