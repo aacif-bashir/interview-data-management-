@@ -39,6 +39,14 @@
       "collectionGroup": "questions",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "favorite",  "order": "ASCENDING" },
+        { "fieldPath": "order",     "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "questions",
+      "queryScope": "COLLECTION",
+      "fields": [
         { "fieldPath": "favorite",   "order": "ASCENDING" },
         { "fieldPath": "updatedAt",  "order": "DESCENDING" }
       ]
