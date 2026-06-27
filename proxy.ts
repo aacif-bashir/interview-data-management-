@@ -1,15 +1,60 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { SESSION_COOKIE, verifySessionCookie } from "@/firebase-services/auth";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 
 /**
  * Auth gate. Every page and API route is protected — a request without a valid
  * Firebase session cookie is redirected to /login (pages) or rejected with 401
  * (API calls). The login page and login API are the only public paths.
  *
- * Next.js 16 renamed `middleware` → `proxy` and runs it on the Node runtime,
- * so the firebase-admin verification in verifySessionCookie works here.
+ * NOTE: We use jose directly here instead of firebase-admin to avoid the
+ * ERR_REQUIRE_ESM crash on Vercel. firebase-admin pulls in jwks-rsa which
+ * calls require() on jose (ESM-only), breaking in Node runtime on Vercel.
+ * jose works natively in both Edge and Node runtimes.
+ *
+ * Firebase session cookies are RS256-signed JWTs — we verify them against
+ * Firebase's public JWKS endpoint without needing the full Admin SDK.
  */
+
+export const SESSION_COOKIE = "session";
+
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID ?? "";
+
+// Firebase uses a proper JWKS endpoint for session cookie verification.
+const FIREBASE_JWKS_URL =
+  "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com";
+
+// Cache the JWKS fetcher across requests (jose handles key rotation internally).
+let _jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+function getJwks() {
+  if (!_jwks) {
+    _jwks = createRemoteJWKSet(new URL(FIREBASE_JWKS_URL));
+  }
+  return _jwks;
+}
+
+/**
+ * Verify a Firebase session cookie using jose + Firebase's public JWKS.
+ * Returns basic user info or null if the cookie is invalid/expired.
+ */
+async function verifySessionCookie(
+  cookie: string | undefined
+): Promise<{ uid: string; email: string } | null> {
+  if (!cookie) return null;
+  try {
+    const { payload } = await jwtVerify(cookie, getJwks(), {
+      issuer: `https://session.firebase.google.com/${FIREBASE_PROJECT_ID}`,
+      audience: FIREBASE_PROJECT_ID,
+    });
+    const uid = (payload.sub ?? payload.uid ?? "") as string;
+    const email = (payload.email ?? "") as string;
+    if (!uid) return null;
+    return { uid, email };
+  } catch {
+    return null;
+  }
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
