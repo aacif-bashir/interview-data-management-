@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { SESSION_COOKIE, verifySessionCookie } from "@/lib/auth";
+import { SESSION_COOKIE, verifySessionCookie } from "@/firebase-services/auth";
 
 /**
  * Auth gate. Every page and API route is protected — a request without a valid

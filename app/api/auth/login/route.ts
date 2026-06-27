@@ -6,7 +6,7 @@ import {
   SESSION_COOKIE_MAX_AGE_MS,
   createSessionCookie,
   touchUserRecord,
-} from "@/lib/auth";
+} from "@/firebase-services/auth";
 
 const schema = z.object({
   /** Firebase ID token returned by signInWithEmailAndPassword on the client. */
