@@ -29,12 +29,14 @@ export function FolderNode({
   onSelectFolder,
   onRefreshTree,
   onRequestMove,
+  canEdit = false,
 }: {
   node: FolderTreeNode;
   selectedFolderId: string | null;
   onSelectFolder: (id: string) => void;
   onRefreshTree: () => void | Promise<void>;
   onRequestMove: (id: string) => void;
+  canEdit?: boolean;
 }) {
   const [expanded, setExpanded] = useState(true);
   const [renaming, setRenaming] = useState(false);
@@ -129,21 +131,23 @@ export function FolderNode({
             )}
           </div>
         </ContextMenuTrigger>
-        <ContextMenuContent className="w-48">
-          <ContextMenuItem onClick={() => setCreatingChild(true)}>
-            <FolderPlus className="size-4" /> New subfolder
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => setRenaming(true)}>
-            <Pencil className="size-4" /> Rename
-          </ContextMenuItem>
-          <ContextMenuItem onClick={() => onRequestMove(node._id)}>
-            <MoveRight className="size-4" /> Move…
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem variant="destructive" onClick={handleDelete}>
-            <Trash2 className="size-4" /> Delete
-          </ContextMenuItem>
-        </ContextMenuContent>
+          {canEdit && (
+            <ContextMenuContent className="w-48">
+              <ContextMenuItem onClick={() => setCreatingChild(true)}>
+                <FolderPlus className="size-4" /> New subfolder
+              </ContextMenuItem>
+              <ContextMenuItem onClick={() => setRenaming(true)}>
+                <Pencil className="size-4" /> Rename
+              </ContextMenuItem>
+              <ContextMenuItem onClick={() => onRequestMove(node._id)}>
+                <MoveRight className="size-4" /> Move…
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+              <ContextMenuItem variant="destructive" onClick={handleDelete}>
+                <Trash2 className="size-4" /> Delete
+              </ContextMenuItem>
+            </ContextMenuContent>
+          )}
       </ContextMenu>
 
       {creatingChild && (
@@ -169,6 +173,7 @@ export function FolderNode({
             onSelectFolder={onSelectFolder}
             onRefreshTree={onRefreshTree}
             onRequestMove={onRequestMove}
+            canEdit={canEdit}
           />
         ))}
     </div>

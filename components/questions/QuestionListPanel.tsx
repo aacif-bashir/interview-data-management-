@@ -41,6 +41,7 @@ export function QuestionListPanel({
   currentFilters,
   onItemsLoaded,
   onMutated,
+  canEdit = false,
 }: {
   filters: QuestionListFilters;
   tree: FolderTreeNode[];
@@ -54,6 +55,7 @@ export function QuestionListPanel({
   onItemsLoaded?: (items: QuestionListItem[]) => void;
   /** Called after a row mutation (delete/status/favorite) to refresh counts. */
   onMutated?: (deletedId?: string) => void;
+  canEdit?: boolean;
 }) {
   const [items, setItems] = useState<QuestionListItem[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -263,71 +265,73 @@ export function QuestionListPanel({
                         )}
                       </button>
                     </ContextMenuTrigger>
-                    <ContextMenuContent className="w-48">
-                      <ContextMenuItem onClick={() => toggleFavorite(q)}>
-                        {q.favorite ? (
-                          <>
-                            <StarOff className="size-4" /> Remove favorite
-                          </>
-                        ) : (
-                          <>
-                            <Star className="size-4" /> Add favorite
-                          </>
-                        )}
-                      </ContextMenuItem>
-                      <ContextMenuSub>
-                        <ContextMenuSubTrigger>
-                          <StatusBadge
-                            status={q.status}
-                            className="text-[10px]"
-                          />
-                        </ContextMenuSubTrigger>
-                        <ContextMenuSubContent>
-                          <ContextMenuRadioGroup value={q.status}>
-                            {(
-                              [
-                                "not_studied",
-                                "learning",
-                                "mastered",
-                              ] as const
-                            ).map((s) => (
-                              <ContextMenuRadioItem
-                                key={s}
-                                value={s}
-                                onClick={() => changeStatus(q, s)}
+                    {canEdit && (
+                      <ContextMenuContent className="w-48">
+                        <ContextMenuItem onClick={() => toggleFavorite(q)}>
+                          {q.favorite ? (
+                            <>
+                              <StarOff className="size-4" /> Remove favorite
+                            </>
+                          ) : (
+                            <>
+                              <Star className="size-4" /> Add favorite
+                            </>
+                          )}
+                        </ContextMenuItem>
+                        <ContextMenuSub>
+                          <ContextMenuSubTrigger>
+                            <StatusBadge
+                              status={q.status}
+                              className="text-[10px]"
+                            />
+                          </ContextMenuSubTrigger>
+                          <ContextMenuSubContent>
+                            <ContextMenuRadioGroup value={q.status}>
+                              {(
+                                [
+                                  "not_studied",
+                                  "learning",
+                                  "mastered",
+                                ] as const
+                              ).map((s) => (
+                                <ContextMenuRadioItem
+                                  key={s}
+                                  value={s}
+                                  onClick={() => changeStatus(q, s)}
+                                >
+                                  {STATUS_LABELS[s]}
+                                </ContextMenuRadioItem>
+                              ))}
+                            </ContextMenuRadioGroup>
+                          </ContextMenuSubContent>
+                        </ContextMenuSub>
+                        <ContextMenuSub>
+                          <ContextMenuSubTrigger>
+                            <FolderInput className="size-4" /> Move to folder
+                          </ContextMenuSubTrigger>
+                          <ContextMenuSubContent className="max-h-72 overflow-y-auto">
+                            {flatFolders.map((f) => (
+                              <ContextMenuItem
+                                key={f._id}
+                                disabled={f._id === q.folderId}
+                                onClick={() => moveQuestion(q, f._id)}
                               >
-                                {STATUS_LABELS[s]}
-                              </ContextMenuRadioItem>
+                                <span style={{ paddingLeft: f.depth * 12 }}>
+                                  {f.name}
+                                </span>
+                              </ContextMenuItem>
                             ))}
-                          </ContextMenuRadioGroup>
-                        </ContextMenuSubContent>
-                      </ContextMenuSub>
-                      <ContextMenuSub>
-                        <ContextMenuSubTrigger>
-                          <FolderInput className="size-4" /> Move to folder
-                        </ContextMenuSubTrigger>
-                        <ContextMenuSubContent className="max-h-72 overflow-y-auto">
-                          {flatFolders.map((f) => (
-                            <ContextMenuItem
-                              key={f._id}
-                              disabled={f._id === q.folderId}
-                              onClick={() => moveQuestion(q, f._id)}
-                            >
-                              <span style={{ paddingLeft: f.depth * 12 }}>
-                                {f.name}
-                              </span>
-                            </ContextMenuItem>
-                          ))}
-                        </ContextMenuSubContent>
-                      </ContextMenuSub>
-                      <ContextMenuSeparator />
-                      <ContextMenuItem
-                        variant="destructive"
-                        onClick={() => deleteQuestion(q)}
-                      >
-                        <Trash2 className="size-4" /> Delete
-                      </ContextMenuItem>
-                    </ContextMenuContent>
+                          </ContextMenuSubContent>
+                        </ContextMenuSub>
+                        <ContextMenuSeparator />
+                        <ContextMenuItem
+                          variant="destructive"
+                          onClick={() => deleteQuestion(q)}
+                        >
+                          <Trash2 className="size-4" /> Delete
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    )}
                   </ContextMenu>
                 </li>
               );
