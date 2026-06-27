@@ -21,7 +21,7 @@ import {
   type Query,
   type DocumentData,
 } from "firebase/firestore";
-import { getClientDb } from "@/lib/firebase-client";
+import { getClientDb } from "@/firebase-services/client";
 import type {
   DuplicateMatch,
   FolderDTO,

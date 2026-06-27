@@ -1,4 +1,4 @@
-import { getFolderTree } from "@/lib/data/folders";
+import { getFolderTree } from "@/firebase-services/folders";
 import { Workspace } from "@/components/workspace/Workspace";
 
 // Always render fresh — folders/questions change frequently and this is a
