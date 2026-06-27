@@ -74,6 +74,11 @@ function initFirebase(): App {
   return globalThis._firebaseApp;
 }
 
+/** Exported so auth.ts can ensure Admin SDK is ready before calling getAuth(). */
+export function initFirebaseAdmin(): void {
+  initFirebase();
+}
+
 /**
  * Returns the cached Firestore instance, initializing Firebase on first call.
  * Every data-access function should call this before issuing queries.

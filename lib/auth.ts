@@ -1,64 +1,137 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
-
 /**
- * Single-user authentication. There are no accounts — access is gated by one
- * shared password (`AUTH_PASSWORD`). On a successful login we issue a signed
- * session cookie; the proxy (lib middleware) verifies that signature on every
- * request, so the cookie cannot be forged without `AUTH_SECRET`.
+ * Server-side session helpers for Firebase Auth token verification.
+ *
+ * Flow (login):
+ *  1. Client calls signInWithEmailAndPassword (Firebase Auth)
+ *  2. Client posts the resulting ID token to /api/auth/login
+ *  3. Server verifies the token with the Admin SDK and sets an httpOnly cookie
+ *  4. proxy.ts verifies the cookie on every subsequent request
+ *
+ * Flow (signup):
+ *  1. Client posts firstName, lastName, email, password to /api/auth/signup
+ *  2. Server creates the Firebase Auth user + Firestore users/{uid} document
+ *  3. Server signs the user in and issues a session cookie
  */
+
+import { getAuth } from "firebase-admin/auth";
+import { getDb, initFirebaseAdmin } from "@/lib/firebase";
+import type { UserRecord, UserRole, UserStatus } from "@/types/user";
 
 export const SESSION_COOKIE = "session";
 
-/** How long a session stays valid, in seconds (30 days). */
-export const SESSION_MAX_AGE = 60 * 60 * 24 * 30;
+/** 5 days in milliseconds. */
+export const SESSION_COOKIE_MAX_AGE_MS = 60 * 60 * 24 * 5 * 1000;
 
-function getSecret(): string {
-  const secret = process.env.AUTH_SECRET;
-  if (!secret) {
-    throw new Error("AUTH_SECRET is not set");
-  }
-  return secret;
-}
+// ─── Session cookie ───────────────────────────────────────────────────────────
 
-/** Constant-time string comparison to avoid leaking timing information. */
-function safeEqual(a: string, b: string): boolean {
-  const ab = Buffer.from(a);
-  const bb = Buffer.from(b);
-  if (ab.length !== bb.length) return false;
-  return timingSafeEqual(ab, bb);
-}
-
-/** Validate a submitted password against the configured `AUTH_PASSWORD`. */
-export function isValidPassword(password: string): boolean {
-  const expected = process.env.AUTH_PASSWORD;
-  if (!expected) {
-    throw new Error("AUTH_PASSWORD is not set");
-  }
-  return safeEqual(password, expected);
+/**
+ * Exchange a short-lived Firebase ID token for a long-lived session cookie.
+ * Called once immediately after signInWithEmailAndPassword on the client.
+ */
+export async function createSessionCookie(idToken: string): Promise<string> {
+  initFirebaseAdmin();
+  return getAuth().createSessionCookie(idToken, {
+    expiresIn: SESSION_COOKIE_MAX_AGE_MS,
+  });
 }
 
 /**
- * A session token is `<expiresAtMs>.<hmac>`. The HMAC covers the expiry, so the
- * token is both tamper-proof and self-expiring without any server-side store.
+ * Verify a session cookie. Returns decoded claims or null if invalid/expired.
  */
-export function createSessionToken(now: number): string {
-  const expiresAt = now + SESSION_MAX_AGE * 1000;
-  const signature = sign(String(expiresAt));
-  return `${expiresAt}.${signature}`;
+export async function verifySessionCookie(
+  cookie: string | undefined
+): Promise<{ uid: string; email: string } | null> {
+  if (!cookie) return null;
+  try {
+    initFirebaseAdmin();
+    const decoded = await getAuth().verifySessionCookie(cookie, true);
+    return { uid: decoded.uid, email: decoded.email ?? "" };
+  } catch {
+    return null;
+  }
 }
 
-/** Verify a session token's signature and that it hasn't expired. */
-export function verifySessionToken(token: string | undefined, now: number): boolean {
-  if (!token) return false;
-  const dot = token.lastIndexOf(".");
-  if (dot <= 0) return false;
-  const payload = token.slice(0, dot);
-  const signature = token.slice(dot + 1);
-  if (!safeEqual(signature, sign(payload))) return false;
-  const expiresAt = Number(payload);
-  return Number.isFinite(expiresAt) && expiresAt > now;
+// ─── User document helpers ────────────────────────────────────────────────────
+
+function toIso(v: unknown): string {
+  if (v && typeof (v as { toDate?: () => Date }).toDate === "function") {
+    return (v as { toDate: () => Date }).toDate().toISOString();
+  }
+  return new Date().toISOString();
 }
 
-function sign(payload: string): string {
-  return createHmac("sha256", getSecret()).update(payload).digest("hex");
+/** Serialize a raw Firestore snap to a clean UserRecord DTO. */
+export function serializeUser(
+  uid: string,
+  data: Record<string, unknown>
+): UserRecord {
+  return {
+    id: uid,
+    email: (data.email as string) ?? "",
+    firstName: (data.firstName as string) ?? "",
+    lastName: (data.lastName as string) ?? "",
+    displayName: (data.displayName as string) ?? "",
+    photoUrl: (data.photoUrl as string | null) ?? null,
+    role: (data.role as UserRole) ?? "viewer",
+    status: (data.status as UserStatus) ?? "active",
+    createdAt: toIso(data.createdAt),
+    updatedAt: toIso(data.updatedAt),
+  };
+}
+
+/**
+ * Create a brand-new user document in `users/{uid}`.
+ * Called during signup — the document must not already exist.
+ */
+export async function createUserRecord(opts: {
+  uid: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  displayName?: string;
+  photoUrl?: string | null;
+}): Promise<UserRecord> {
+  const db = getDb();
+  const now = new Date();
+  const displayName =
+    opts.displayName?.trim() ||
+    `${opts.firstName} ${opts.lastName}`.trim();
+
+  const data = {
+    email: opts.email,
+    firstName: opts.firstName.trim(),
+    lastName: opts.lastName.trim(),
+    displayName,
+    photoUrl: opts.photoUrl ?? null,
+    role: "viewer" as UserRole,
+    status: "active" as UserStatus,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await db.collection("users").doc(opts.uid).set(data);
+  return serializeUser(opts.uid, { ...data, createdAt: now, updatedAt: now });
+}
+
+/**
+ * Update metadata on an existing user document (email sync, photo, etc.).
+ * Never overwrites role or status.
+ */
+export async function touchUserRecord(
+  uid: string,
+  patch: { email?: string; photoUrl?: string | null }
+): Promise<void> {
+  const db = getDb();
+  await db
+    .collection("users")
+    .doc(uid)
+    .update({ ...patch, updatedAt: new Date() });
+}
+
+/** Fetch a user record by uid. Returns null if the document doesn't exist. */
+export async function getUserRecord(uid: string): Promise<UserRecord | null> {
+  const db = getDb();
+  const snap = await db.collection("users").doc(uid).get();
+  if (!snap.exists) return null;
+  return serializeUser(uid, snap.data() as Record<string, unknown>);
 }

@@ -80,3 +80,5 @@ export interface QuestionListFilters {
   cursor?: string;
   limit?: number;
 }
+
+export type { UserRecord, UserDTO, UserRole, UserStatus } from "./user";
