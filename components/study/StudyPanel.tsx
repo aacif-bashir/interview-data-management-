@@ -54,11 +54,13 @@ export function StudyPanel({
   onNext,
   onChanged,
   onDeleted,
+  canEdit = false,
 }: {
   tree: FolderTreeNode[];
   selected: QuestionListItem | null;
   onChanged: () => void;
   onDeleted: () => void;
+  canEdit?: boolean;
 } & StudyNavProps) {
   // Persisted preference: reveal answers automatically when opening a question.
   // Defaults to true (answers shown), remembered across sessions.
@@ -99,6 +101,7 @@ export function StudyPanel({
       onDeleted={onDeleted}
       revealByDefault={revealByDefault}
       onRevealByDefaultChange={setRevealByDefault}
+      canEdit={canEdit}
     />
   );
 }
@@ -113,6 +116,7 @@ function QuestionStudy({
   onDeleted,
   revealByDefault,
   onRevealByDefaultChange,
+  canEdit = false,
 }: {
   tree: FolderTreeNode[];
   questionId: string;
@@ -120,6 +124,7 @@ function QuestionStudy({
   onDeleted: () => void;
   revealByDefault: boolean;
   onRevealByDefaultChange: (value: boolean) => void;
+  canEdit?: boolean;
 } & StudyNavProps) {
   const [detail, setDetail] = useState<QuestionDTO | null>(null);
   const [questionHtml, setQuestionHtml] = useState("");
@@ -202,7 +207,7 @@ function QuestionStudy({
           <Select
             value={detail?.status ?? "not_studied"}
             onValueChange={(v) => updateStatus(v as QuestionStatus)}
-            disabled={!detail}
+            disabled={!detail || !canEdit}
           >
             <SelectTrigger size="sm" className="w-36">
               <SelectValue />
@@ -219,7 +224,7 @@ function QuestionStudy({
             variant="ghost"
             size="icon"
             onClick={toggleFavorite}
-            disabled={!detail}
+            disabled={!detail || !canEdit}
             aria-label="Toggle favorite"
           >
             <Star
@@ -248,33 +253,37 @@ function QuestionStudy({
             />
             Reveal all
           </Label>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setMoving(true)}
-            disabled={!detail}
-            aria-label="Move to folder"
-          >
-            <FolderInput className="size-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setEditing(true)}
-            disabled={!detail}
-            aria-label="Edit"
-          >
-            <Pencil className="size-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={remove}
-            disabled={!detail}
-            aria-label="Delete"
-          >
-            <Trash2 className="size-4" />
-          </Button>
+          {canEdit && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setMoving(true)}
+                disabled={!detail}
+                aria-label="Move to folder"
+              >
+                <FolderInput className="size-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setEditing(true)}
+                disabled={!detail}
+                aria-label="Edit"
+              >
+                <Pencil className="size-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={remove}
+                disabled={!detail}
+                aria-label="Delete"
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </>
+          )}
         </div>
       </div>
 

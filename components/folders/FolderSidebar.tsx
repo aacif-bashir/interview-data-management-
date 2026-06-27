@@ -18,12 +18,14 @@ export function FolderSidebar({
   onSelectFolder,
   onRefreshTree,
   onOpenPaste,
+  canEdit = false,
 }: {
   tree: FolderTreeNode[];
   selectedFolderId: string | null;
   onSelectFolder: (id: string) => void;
   onRefreshTree: () => void | Promise<void>;
   onOpenPaste: () => void;
+  canEdit?: boolean;
 }) {
   const [creatingRoot, setCreatingRoot] = useState(false);
   // Folder currently being moved (drives the move dialog).
@@ -41,17 +43,21 @@ export function FolderSidebar({
         <ThemeToggle />
       </div>
 
-      <div className="px-3 pb-3">
-        <Button
-          size="default"
-          className="w-full justify-center"
-          onClick={onOpenPaste}
-        >
-          <ClipboardPaste className="size-4" /> Paste &amp; Map
-        </Button>
-      </div>
+      {canEdit && (
+        <>
+          <div className="px-3 pb-3">
+            <Button
+              size="default"
+              className="w-full justify-center"
+              onClick={onOpenPaste}
+            >
+              <ClipboardPaste className="size-4" /> Paste &amp; Map
+            </Button>
+          </div>
 
-      <Separator />
+          <Separator />
+        </>
+      )}
 
       <ScrollArea className="flex-1">
         <div className="px-1.5 py-2">
@@ -59,15 +65,17 @@ export function FolderSidebar({
             <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
               Folders
             </span>
-            <button
-              type="button"
-              onClick={() => setCreatingRoot(true)}
-              className="flex size-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
-              title="New folder"
-              aria-label="New folder"
-            >
-              <FolderPlus className="size-3.5" />
-            </button>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => setCreatingRoot(true)}
+                className="flex size-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+                title="New folder"
+                aria-label="New folder"
+              >
+                <FolderPlus className="size-3.5" />
+              </button>
+            )}
           </div>
 
           {creatingRoot && (
@@ -99,6 +107,7 @@ export function FolderSidebar({
               onSelectFolder={onSelectFolder}
               onRefreshTree={onRefreshTree}
               onRequestMove={setMovingId}
+              canEdit={canEdit}
             />
           ))}
         </div>

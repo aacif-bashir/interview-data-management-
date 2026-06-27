@@ -28,9 +28,12 @@ export interface WorkspaceContextValue {
 
 export function Workspace({
   initialTree,
+  userRole,
 }: {
   initialTree: FolderTreeNode[];
+  userRole: string;
 }) {
+  const canEdit = userRole === "admin" || userRole === "editor";
   const isMobile = useIsMobile();
   // On mobile the three panels become a single swappable view driven by a
   // bottom tab bar; on desktop this is ignored and all three render at once.
@@ -96,6 +99,7 @@ export function Workspace({
       }}
       onRefreshTree={refreshTree}
       onOpenPaste={() => setPasteOpen(true)}
+      canEdit={canEdit}
     />
   );
 
@@ -119,6 +123,7 @@ export function Workspace({
         }
         refreshTree();
       }}
+      canEdit={canEdit}
     />
   );
 
@@ -142,6 +147,7 @@ export function Workspace({
         refreshList();
         refreshTree();
       }}
+      canEdit={canEdit}
     />
   );
 
