@@ -91,6 +91,8 @@ export function LoginForm() {
       router.refresh();
     } catch (err: unknown) {
       const code = (err as { code?: string })?.code;
+      // Always log so the real code is visible in browser devtools / Vercel logs.
+      console.error("[auth] Firebase error:", code, err);
       if (
         code === "auth/invalid-credential" ||
         code === "auth/wrong-password" ||
@@ -102,6 +104,12 @@ export function LoginForm() {
         setError("Email already in use");
       } else if (code === "auth/weak-password") {
         setError("Password should be at least 6 characters");
+      } else if (
+        code === "auth/invalid-api-key" ||
+        code === "auth/app-not-authorized"
+      ) {
+        // Happens when NEXT_PUBLIC_FIREBASE_* env vars are missing or wrong in production.
+        setError("Configuration error — contact support");
       } else {
         setError(mode === "login" ? "Sign in failed — please try again" : "Sign up failed — please try again");
       }
