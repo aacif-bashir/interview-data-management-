@@ -145,12 +145,40 @@ async function getCollectionName(folderId: string): Promise<string> {
   return (snap.data() as Record<string, unknown>).collectionName as string;
 }
 
-/** Lookup which collection a question lives in via _qindex. */
+/** Lookup which collection a question lives in via _qindex.
+ *  Falls back to scanning folder collections when the index entry is missing
+ *  (e.g. docs created directly in Firestore or before _qindex was implemented).
+ *  On a successful fallback the missing _qindex entry is backfilled automatically.
+ */
 async function resolveQuestionLocation(questionId: string): Promise<{ collectionName: string; folderId: string }> {
-  const snap = await getDoc(doc(qindexCol(), questionId));
-  if (!snap.exists()) throw new Error("Question not found");
-  const d = snap.data() as Record<string, unknown>;
-  return { collectionName: d.collectionName as string, folderId: d.folderId as string };
+  // 1. Fast path: check the central index.
+  const indexSnap = await getDoc(doc(qindexCol(), questionId));
+  if (indexSnap.exists()) {
+    const d = indexSnap.data() as Record<string, unknown>;
+    return { collectionName: d.collectionName as string, folderId: d.folderId as string };
+  }
+
+  // 2. Slow-path fallback: scan all folder collections.
+  //    Each question document stores its own `collectionName` and `folderId` fields.
+  const db = getClientDb();
+  const allFolders = await getDocs(foldersCol());
+  for (const fd of allFolders.docs) {
+    const cn = (fd.data() as Record<string, unknown>).collectionName as string | undefined;
+    if (!cn) continue;
+    const qSnap = await getDoc(doc(db, cn, questionId));
+    if (qSnap.exists()) {
+      const qData = qSnap.data() as Record<string, unknown>;
+      const folderId = (qData.folderId as string | undefined) ?? fd.id;
+      const collectionName = (qData.collectionName as string | undefined) ?? cn;
+      // 3. Backfill the missing _qindex entry so next lookup is fast.
+      try {
+        await setDoc(doc(qindexCol(), questionId), { collectionName, folderId });
+      } catch { /* non-critical — ignore write errors */ }
+      return { collectionName, folderId };
+    }
+  }
+
+  throw new Error("Question not found");
 }
 
 async function nextOrder(collectionName: string): Promise<number> {
