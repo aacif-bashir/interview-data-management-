@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FolderPlus, ClipboardPaste, Library } from "lucide-react";
+import { FolderPlus, ClipboardPaste, Library, DatabaseZap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -10,7 +10,9 @@ import { LogoutButton } from "@/components/workspace/LogoutButton";
 import { FolderNode } from "./FolderNode";
 import { InlineFolderInput } from "./InlineFolderInput";
 import { MoveFolderDialog } from "./MoveFolderDialog";
+import { MigrateDialog } from "@/components/workspace/MigrateDialog";
 import type { FolderTreeNode } from "@/types";
+import type { UserRecord } from "@/types";
 
 export function FolderSidebar({
   tree,
@@ -18,6 +20,7 @@ export function FolderSidebar({
   onSelectFolder,
   onRefreshTree,
   onOpenPaste,
+  user,
   canEdit = false,
 }: {
   tree: FolderTreeNode[];
@@ -25,11 +28,12 @@ export function FolderSidebar({
   onSelectFolder: (id: string) => void;
   onRefreshTree: () => void | Promise<void>;
   onOpenPaste: () => void;
+  user?: UserRecord | null;
   canEdit?: boolean;
 }) {
   const [creatingRoot, setCreatingRoot] = useState(false);
-  // Folder currently being moved (drives the move dialog).
   const [movingId, setMovingId] = useState<string | null>(null);
+  const [migrateOpen, setMigrateOpen] = useState(false);
 
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
@@ -114,7 +118,18 @@ export function FolderSidebar({
       </ScrollArea>
 
       <Separator />
-      <div className="px-2 py-2">
+      <div className="px-2 py-2 space-y-1">
+        {canEdit && (
+          <button
+            type="button"
+            onClick={() => setMigrateOpen(true)}
+            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+            title="Migrate legacy questions into folder collections"
+          >
+            <DatabaseZap className="size-3.5 shrink-0" />
+            Migrate legacy data
+          </button>
+        )}
         <LogoutButton />
       </div>
 
@@ -127,6 +142,12 @@ export function FolderSidebar({
           setMovingId(null);
           onRefreshTree();
         }}
+      />
+
+      <MigrateDialog
+        open={migrateOpen}
+        onOpenChange={setMigrateOpen}
+        user={user ?? null}
       />
     </div>
   );

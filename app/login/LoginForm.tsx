@@ -4,8 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Lock, UserPlus } from "lucide-react";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
-import { getAuth } from "firebase/auth";
-import { getClientApp } from "@/firebase-services/client";
+import { getClientAuth } from "@/firebase-services/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,7 +34,7 @@ export function LoginForm() {
     setError(null);
 
     try {
-      const auth = getAuth(getClientApp());
+      const auth = getClientAuth();
       
       if (mode === "login") {
         // 1. Sign in with Firebase Auth (email + password).
