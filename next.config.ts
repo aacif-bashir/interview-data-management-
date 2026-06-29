@@ -15,6 +15,7 @@ const nextConfig: NextConfig = {
     "jwks-rsa",
     "jose",
   ],
+
 };
 
 export default nextConfig;
