@@ -102,6 +102,7 @@ export function Workspace({
       }}
       onRefreshTree={refreshTree}
       onOpenPaste={() => setPasteOpen(true)}
+      user={user}
       canEdit={canEdit}
     />
   );

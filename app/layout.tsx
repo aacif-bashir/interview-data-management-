@@ -20,7 +20,7 @@ export default function RootLayout({
       className="h-full antialiased"
       suppressHydrationWarning
     >
-      <head>
+      <head suppressHydrationWarning>
         {/* Geist fonts via Google Fonts — replaces next/font (incompatible with Babel) */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
