@@ -119,7 +119,7 @@ export function FolderSidebar({
 
       <Separator />
       <div className="px-2 py-2 space-y-1">
-        {canEdit && (
+        {/* {canEdit && (
           <button
             type="button"
             onClick={() => setMigrateOpen(true)}
@@ -129,7 +129,7 @@ export function FolderSidebar({
             <DatabaseZap className="size-3.5 shrink-0" />
             Migrate legacy data
           </button>
-        )}
+        )} */}
         <LogoutButton />
       </div>
 
