@@ -33,7 +33,7 @@ import {
 import { countMismatch } from "@/lib/paste/zip";
 import { cn } from "@/lib/utils";
 import { questionsApi } from "@/lib/api-client";
-import type { DuplicateMatch, FolderTreeNode, QuestionStatus } from "@/types";
+import type { DuplicateMatch, FolderTreeNode, QuestionStatus, UserRecord } from "@/types";
 
 type Step = "input" | "preview";
 
@@ -42,12 +42,14 @@ export function PasteMapDialog({
   onOpenChange,
   tree,
   defaultFolderId,
+  user,
   onSaved,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   tree: FolderTreeNode[];
   defaultFolderId: string | null;
+  user: UserRecord | null;
   onSaved: () => void;
 }) {
   const [step, setStep] = useState<Step>("input");
@@ -171,11 +173,19 @@ export function PasteMapDialog({
 
     setSaving(true);
     try {
+      const createdBy = user
+        ? {
+            id: user.id,
+            name: user.displayName || `${user.firstName} ${user.lastName}`.trim(),
+            email: user.email,
+          }
+        : null;
       const res = await questionsApi.bulkCreate({
         folderId,
         pairs,
         tags,
         status,
+        createdBy,
       });
       toast.success(`Saved ${res.insertedCount} question(s)`);
       reset();

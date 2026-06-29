@@ -16,5 +16,5 @@ export default async function HomePage() {
 
   // Initial folder tree is fetched on the server for a fast first paint.
   const tree = await getFolderTree();
-  return <Workspace initialTree={tree} userRole={userRole} />;
+  return <Workspace initialTree={tree} userRole={userRole} user={user} />;
 }

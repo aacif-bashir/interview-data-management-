@@ -498,6 +498,7 @@ export const questionsApi = {
   async bulkCreate(input: {
     folderId: string; pairs: { question: string; answer: string }[];
     tags?: string[]; status?: QuestionStatus;
+    createdBy?: { id: string; name: string; email: string } | null;
   }): Promise<{ insertedCount: number; firstOrder: number; lastOrder: number }> {
     const folderSnap = await getDoc(doc(foldersCol(), input.folderId));
     if (!folderSnap.exists()) throw new Error("Folder not found");
@@ -517,6 +518,7 @@ export const questionsApi = {
         question: p.question, answer: p.answer ?? "",
         title: deriveTitle(p.question), tags, status,
         favorite: false, contentHash: hash,
+        createdBy: input.createdBy ?? null,
         createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
       });
       ops++;

@@ -15,6 +15,7 @@ import type {
   FolderTreeNode,
   QuestionListFilters,
   QuestionListItem,
+  UserRecord,
 } from "@/types";
 import { FolderSidebar } from "@/components/folders/FolderSidebar";
 import { QuestionListPanel } from "@/components/questions/QuestionListPanel";
@@ -29,9 +30,11 @@ export interface WorkspaceContextValue {
 export function Workspace({
   initialTree,
   userRole,
+  user,
 }: {
   initialTree: FolderTreeNode[];
   userRole: string;
+  user: UserRecord | null;
 }) {
   const canEdit = userRole === "admin" || userRole === "editor";
   const isMobile = useIsMobile();
@@ -157,6 +160,7 @@ export function Workspace({
       onOpenChange={setPasteOpen}
       tree={tree}
       defaultFolderId={selectedFolderId}
+      user={user}
       onSaved={() => {
         refreshList();
         refreshTree();
