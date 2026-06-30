@@ -81,6 +81,7 @@ function snapToFolder(snap: DocumentSnapshot | QueryDocumentSnapshot): FolderDTO
     questionCount: (d.questionCount as number) ?? 0,
     createdAt: ts(d.createdAt),
     updatedAt: ts(d.updatedAt),
+    createdBy: (d.createdBy as { id: string; name: string; email: string } | null) ?? null,
   };
 }
 
@@ -195,7 +196,7 @@ export const foldersApi = {
     return buildTree(snap.docs.map(snapToFolder));
   },
 
-  async create(name: string, parentId: string | null): Promise<FolderDTO> {
+  async create(name: string, parentId: string | null, createdBy?: { id: string; name: string; email: string } | null): Promise<FolderDTO> {
     await ensureFirebaseAuthReady();
     const db = getClientDb();
     let ancestors: string[] = [];
@@ -220,7 +221,9 @@ export const foldersApi = {
     const ref = await addDoc(foldersCol(), {
       name, parentId: parentId ?? null, ancestors, depth, path,
       collectionName,
-      questionCount: 0, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+      questionCount: 0,
+      createdBy: createdBy ?? null,
+      createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
     });
 
     // 2. Create the folder-named collection by writing a _meta doc to it.
@@ -230,6 +233,7 @@ export const foldersApi = {
       name,
       folderId: ref.id,
       parentId: parentId ?? null,
+      createdBy: createdBy ?? null,
       createdAt: serverTimestamp(),
     });
 
@@ -243,11 +247,13 @@ export const foldersApi = {
     // Note: collectionName is intentionally NOT changed on rename to keep
     // question documents stable. Only the display name changes.
     await updateDoc(ref, { name, updatedAt: serverTimestamp() });
-    // Also update _meta in the folder collection
+    // Also update _meta in the folder collection (use merge so it's safe if _meta is absent).
     const snap = await getDoc(ref);
     if (snap.exists()) {
       const colName = (snap.data() as Record<string, unknown>).collectionName as string;
-      await updateDoc(doc(getClientDb(), colName, "_meta"), { name });
+      if (colName) {
+        await setDoc(doc(getClientDb(), colName, "_meta"), { name }, { merge: true });
+      }
     }
     const updated = await getDoc(ref);
     return snapToFolder(updated);
@@ -452,7 +458,7 @@ export const questionsApi = {
     });
     // Write index entry
     await setDoc(doc(qindexCol(), ref.id), { collectionName: colName, folderId: input.folderId });
-    await updateDoc(doc(foldersCol(), input.folderId), { questionCount: increment(1), updatedAt: serverTimestamp() });
+    await setDoc(doc(foldersCol(), input.folderId), { questionCount: increment(1), updatedAt: serverTimestamp() }, { merge: true });
     const created = await getDoc(ref);
     return snapToQuestion(created);
   },
@@ -489,8 +495,8 @@ export const questionsApi = {
       batch.set(doc(folderQuestionsCol(newColName), id), updates);
       batch.delete(ref);
       batch.set(doc(qindexCol(), id), { collectionName: newColName, folderId: patch.folderId });
-      batch.update(doc(foldersCol(), oldFolderId), { questionCount: increment(-1), updatedAt: serverTimestamp() });
-      batch.update(doc(foldersCol(), patch.folderId!), { questionCount: increment(1), updatedAt: serverTimestamp() });
+      batch.set(doc(foldersCol(), oldFolderId), { questionCount: increment(-1), updatedAt: serverTimestamp() }, { merge: true });
+      batch.set(doc(foldersCol(), patch.folderId!), { questionCount: increment(1), updatedAt: serverTimestamp() }, { merge: true });
       await batch.commit();
       const updated = await getDoc(doc(folderQuestionsCol(newColName), id));
       return snapToQuestion(updated);
@@ -524,7 +530,7 @@ export const questionsApi = {
     const batch = writeBatch(db);
     batch.delete(doc(folderQuestionsCol(collectionName), id));
     batch.delete(doc(qindexCol(), id));
-    batch.update(doc(foldersCol(), folderId), { questionCount: increment(-1), updatedAt: serverTimestamp() });
+    batch.set(doc(foldersCol(), folderId), { questionCount: increment(-1), updatedAt: serverTimestamp() }, { merge: true });
     await batch.commit();
     return { ok: true };
   },
@@ -560,9 +566,9 @@ export const questionsApi = {
     }
     if (ops > 0) await batch.commit();
 
-    await updateDoc(doc(foldersCol(), input.folderId), {
+    await setDoc(doc(foldersCol(), input.folderId), {
       questionCount: increment(input.pairs.length), updatedAt: serverTimestamp(),
-    });
+    }, { merge: true });
 
     return {
       insertedCount: input.pairs.length,

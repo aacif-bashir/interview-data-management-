@@ -22,6 +22,7 @@ import {
 import { foldersApi } from "@/lib/api-client";
 import { InlineFolderInput } from "./InlineFolderInput";
 import type { FolderTreeNode } from "@/types";
+import type { UserRecord } from "@/types/user";
 
 export function FolderNode({
   node,
@@ -30,6 +31,7 @@ export function FolderNode({
   onRefreshTree,
   onRequestMove,
   canEdit = false,
+  user,
 }: {
   node: FolderTreeNode;
   selectedFolderId: string | null;
@@ -37,6 +39,8 @@ export function FolderNode({
   onRefreshTree: () => void | Promise<void>;
   onRequestMove: (id: string) => void;
   canEdit?: boolean;
+  /** Current authenticated user — used for editor-scoped ownership checks. */
+  user?: UserRecord | null;
 }) {
   const [expanded, setExpanded] = useState(true);
   const [renaming, setRenaming] = useState(false);
@@ -44,6 +48,23 @@ export function FolderNode({
 
   const hasChildren = node.children.length > 0;
   const isSelected = selectedFolderId === node._id;
+
+  /**
+   * Admins can edit any folder.
+   * Editors can only edit folders they created (identified by user.id === node.createdBy.id).
+   * If createdBy is absent (legacy folders without metadata), editors cannot edit.
+   */
+  const isAdmin = user?.role === "admin";
+  const isOwner =
+    user?.role === "editor" &&
+    node.createdBy != null &&
+    node.createdBy.id === user.id;
+  const canEditThisFolder = canEdit && (isAdmin || isOwner);
+
+  /** The createdBy object to stamp on newly created child folders. */
+  const createdBy = user
+    ? { id: user.id, name: user.displayName, email: user.email }
+    : null;
 
   async function handleDelete() {
     const isEmpty = !hasChildren && node.questionCount === 0;
@@ -131,7 +152,7 @@ export function FolderNode({
             )}
           </div>
         </ContextMenuTrigger>
-          {canEdit && (
+          {canEditThisFolder && (
             <ContextMenuContent className="w-48">
               <ContextMenuItem onClick={() => setCreatingChild(true)}>
                 <FolderPlus className="size-4" /> New subfolder
@@ -155,6 +176,7 @@ export function FolderNode({
           depth={node.depth + 1}
           parentId={node._id}
           placeholder="New subfolder"
+          createdBy={createdBy}
           onCancel={() => setCreatingChild(false)}
           onSubmit={() => {
             setCreatingChild(false);
@@ -174,6 +196,7 @@ export function FolderNode({
             onRefreshTree={onRefreshTree}
             onRequestMove={onRequestMove}
             canEdit={canEdit}
+            user={user}
           />
         ))}
     </div>

@@ -16,6 +16,7 @@ export function InlineFolderInput({
   placeholder = "Folder name",
   mode = "create",
   folderId,
+  createdBy,
   onSubmit,
   onCancel,
 }: {
@@ -25,6 +26,8 @@ export function InlineFolderInput({
   placeholder?: string;
   mode?: "create" | "rename";
   folderId?: string;
+  /** The authenticated user — stored as createdBy on the new folder document. */
+  createdBy?: { id: string; name: string; email: string } | null;
   onSubmit: () => void;
   onCancel: () => void;
 }) {
@@ -40,7 +43,7 @@ export function InlineFolderInput({
     setBusy(true);
     try {
       if (mode === "create") {
-        await foldersApi.create(name, parentId ?? null);
+        await foldersApi.create(name, parentId ?? null, createdBy);
         toast.success("Folder created");
       } else if (folderId) {
         await foldersApi.rename(folderId, name);

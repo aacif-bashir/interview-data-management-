@@ -28,6 +28,8 @@ export interface FolderDTO {
   questionCount: number;
   createdAt: string;
   updatedAt: string;
+  /** The user who created this folder. Stored so editors can be scoped to their own folders. */
+  createdBy?: { id: string; name: string; email: string } | null;
 }
 
 /** A folder node with its children attached — used to render the tree. */
