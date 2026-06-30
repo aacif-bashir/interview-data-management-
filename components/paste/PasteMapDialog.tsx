@@ -74,6 +74,19 @@ export function PasteMapDialog({
   const [allowUnmatched, setAllowUnmatched] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  /**
+   * For editor users, restrict the folder picker to only folders they created.
+   * Admins and viewers see the full tree (viewers can't reach this dialog anyway).
+   */
+  const filteredTree = useMemo(() => {
+    if (!user || user.role !== "editor") return tree;
+    const filterNodes = (nodes: FolderTreeNode[]): FolderTreeNode[] =>
+      nodes
+        .filter((n) => n.createdBy?.id === user.id)
+        .map((n) => ({ ...n, children: filterNodes(n.children) }));
+    return filterNodes(tree);
+  }, [tree, user]);
+
   // Duplicate detection: maps a row index -> matching existing questions.
   const [duplicates, setDuplicates] = useState<Map<number, DuplicateMatch>>(
     new Map(),
@@ -334,7 +347,7 @@ export function PasteMapDialog({
                   Save into folder
                 </Label>
                 <FolderPicker
-                  tree={tree}
+                  tree={filteredTree}
                   value={folderId}
                   onChange={setFolderId}
                 />

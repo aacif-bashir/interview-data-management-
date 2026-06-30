@@ -30,6 +30,7 @@ import {
   type QuestionListItem,
   type QuestionStatus,
 } from "@/types";
+import type { UserRecord } from "@/types/user";
 import { Star, StarOff, Trash2, FolderInput } from "lucide-react";
 
 export function QuestionListPanel({
@@ -42,6 +43,7 @@ export function QuestionListPanel({
   onItemsLoaded,
   onMutated,
   canEdit = false,
+  user,
 }: {
   filters: QuestionListFilters;
   tree: FolderTreeNode[];
@@ -56,6 +58,8 @@ export function QuestionListPanel({
   /** Called after a row mutation (delete/status/favorite) to refresh counts. */
   onMutated?: (deletedId?: string) => void;
   canEdit?: boolean;
+  /** Current authenticated user — used for editor-scoped ownership checks. */
+  user?: UserRecord | null;
 }) {
   const [items, setItems] = useState<QuestionListItem[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -64,6 +68,22 @@ export function QuestionListPanel({
 
   const folder = filters.folderId ? findNode(tree, filters.folderId) : null;
   const flatFolders = flattenTree(tree);
+
+  /**
+   * Returns true when the current user may mutate a specific question.
+   * - admins: always (canEdit is true)
+   * - editors: only if the question's folder was created by this user
+   * - viewers: never
+   */
+  function canEditQuestion(q: QuestionListItem): boolean {
+    if (!canEdit) return false;
+    if (user?.role === "admin") return true;
+    if (user?.role === "editor") {
+      const folderNode = findNode(tree, q.folderId);
+      return folderNode?.createdBy?.id === user.id;
+    }
+    return false;
+  }
 
   const load = useCallback(
     async (cursor?: string) => {
@@ -265,7 +285,7 @@ export function QuestionListPanel({
                         )}
                       </button>
                     </ContextMenuTrigger>
-                    {canEdit && (
+                    {canEditQuestion(q) && (
                       <ContextMenuContent className="w-48">
                         <ContextMenuItem onClick={() => toggleFavorite(q)}>
                           {q.favorite ? (

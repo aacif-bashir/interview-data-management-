@@ -38,6 +38,7 @@ import {
   type QuestionListItem,
   type QuestionStatus,
 } from "@/types";
+import type { UserRecord } from "@/types/user";
 
 interface StudyNavProps {
   /** 0-based index + total of the current question within the loaded list. */
@@ -55,12 +56,15 @@ export function StudyPanel({
   onChanged,
   onDeleted,
   canEdit = false,
+  user,
 }: {
   tree: FolderTreeNode[];
   selected: QuestionListItem | null;
   onChanged: () => void;
   onDeleted: () => void;
   canEdit?: boolean;
+  /** Current authenticated user — used for editor-scoped ownership checks. */
+  user?: UserRecord | null;
 } & StudyNavProps) {
   // Persisted preference: reveal answers automatically when opening a question.
   // Defaults to true (answers shown), remembered across sessions.
@@ -87,6 +91,33 @@ export function StudyPanel({
       </div>
     );
   }
+
+  /**
+   * Compute whether the current user can edit this specific question.
+   * - admin: yes (canEdit is true)
+   * - editor: only if the question's folder was created by this user
+   * - viewer: no
+   */
+  const folderNode = tree.find((n) => n._id === selected.folderId) ??
+    // Also search nested via a quick flatten helper
+    (() => {
+      const flatten = (nodes: FolderTreeNode[]): FolderTreeNode | undefined => {
+        for (const n of nodes) {
+          if (n._id === selected.folderId) return n;
+          const found = flatten(n.children);
+          if (found) return found;
+        }
+      };
+      return flatten(tree);
+    })();
+
+  const canEditQuestion =
+    canEdit &&
+    (user?.role === "admin" ||
+      (user?.role === "editor" &&
+        folderNode?.createdBy != null &&
+        folderNode.createdBy.id === user.id));
+
   // Keyed by id so switching questions remounts with fresh state — no reset
   // effect needed.
   return (
@@ -101,7 +132,7 @@ export function StudyPanel({
       onDeleted={onDeleted}
       revealByDefault={revealByDefault}
       onRevealByDefaultChange={setRevealByDefault}
-      canEdit={canEdit}
+      canEdit={canEditQuestion}
     />
   );
 }

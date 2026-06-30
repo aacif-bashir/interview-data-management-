@@ -92,6 +92,11 @@ export function FolderSidebar({
                 onRefreshTree();
               }}
               parentId={null}
+              createdBy={
+                user
+                  ? { id: user.id, name: user.displayName, email: user.email }
+                  : null
+              }
             />
           )}
 
@@ -112,6 +117,7 @@ export function FolderSidebar({
               onRefreshTree={onRefreshTree}
               onRequestMove={setMovingId}
               canEdit={canEdit}
+              user={user}
             />
           ))}
         </div>

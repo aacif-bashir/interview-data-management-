@@ -128,6 +128,7 @@ export function Workspace({
         refreshTree();
       }}
       canEdit={canEdit}
+      user={user}
     />
   );
 
@@ -152,6 +153,7 @@ export function Workspace({
         refreshTree();
       }}
       canEdit={canEdit}
+      user={user}
     />
   );
 
