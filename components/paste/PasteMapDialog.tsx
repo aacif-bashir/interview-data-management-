@@ -69,6 +69,14 @@ export function PasteMapDialog({
   const [answers, setAnswers] = useState<string[]>([]);
 
   const [folderId, setFolderId] = useState<string | null>(defaultFolderId);
+
+  // Keep the internal folder selection in sync with whichever folder is open
+  // in the workspace. This fires when the dialog opens AND when the user
+  // switches folders while the dialog was already mounted.
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional sync with parent prop
+  useEffect(() => {
+    if (open) setFolderId(defaultFolderId);
+  }, [open, defaultFolderId]);
   const [tags, setTags] = useState<string[]>([]);
   const [status, setStatus] = useState<QuestionStatus>("not_studied");
   const [allowUnmatched, setAllowUnmatched] = useState(false);
@@ -137,6 +145,8 @@ export function PasteMapDialog({
     setAStrategy({ kind: "numbered" });
     setQuestions([]);
     setAnswers([]);
+    // Restore to the currently-open folder, not null.
+    setFolderId(defaultFolderId);
     setTags([]);
     setStatus("not_studied");
     setAllowUnmatched(false);

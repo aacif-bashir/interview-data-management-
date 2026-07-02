@@ -76,10 +76,11 @@ interface QuestionDoc {
 // ─── Serialization ───────────────────────────────────────────────────────────
 
 function docToDTO(snap: DocumentSnapshot | QueryDocumentSnapshot): QuestionDTO {
-  const d = snap.data() as QuestionDoc;
+  const d = snap.data() as QuestionDoc & { collectionName?: string };
   return {
     _id: snap.id,
     folderId: d.folderId,
+    collectionName: d.collectionName ?? "",
     title: d.title ?? "",
     question: d.question,
     answer: d.answer ?? "",
@@ -95,10 +96,11 @@ function docToDTO(snap: DocumentSnapshot | QueryDocumentSnapshot): QuestionDTO {
 function docToListItem(
   snap: DocumentSnapshot | QueryDocumentSnapshot
 ): QuestionListItem {
-  const d = snap.data() as QuestionDoc;
+  const d = snap.data() as QuestionDoc & { collectionName?: string };
   return {
     _id: snap.id,
     folderId: d.folderId,
+    collectionName: d.collectionName ?? "",
     title: d.title ?? "",
     status: d.status,
     favorite: d.favorite,

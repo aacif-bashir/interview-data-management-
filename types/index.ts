@@ -41,6 +41,8 @@ export interface FolderTreeNode extends FolderDTO {
 export interface QuestionListItem {
   _id: string;
   folderId: string;
+  /** Firestore collection name for this question's folder — used for batch reorder writes. */
+  collectionName: string;
   title: string;
   status: QuestionStatus;
   favorite: boolean;

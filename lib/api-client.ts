@@ -90,6 +90,7 @@ function snapToQuestion(snap: DocumentSnapshot | QueryDocumentSnapshot): Questio
   return {
     _id: snap.id,
     folderId: d.folderId as string,
+    collectionName: (d.collectionName as string) ?? "",
     title: (d.title as string) ?? "",
     question: d.question as string,
     answer: (d.answer as string) ?? "",
@@ -107,6 +108,7 @@ function snapToListItem(snap: DocumentSnapshot | QueryDocumentSnapshot): Questio
   return {
     _id: snap.id,
     folderId: d.folderId as string,
+    collectionName: (d.collectionName as string) ?? "",
     title: (d.title as string) ?? "",
     status: d.status as QuestionListItem["status"],
     favorite: d.favorite as boolean,
@@ -575,6 +577,34 @@ export const questionsApi = {
       firstOrder: startOrder,
       lastOrder: startOrder + (input.pairs.length - 1) * ORDER_GAP,
     };
+  },
+
+  /**
+   * Persist a new ordering for questions already loaded in a single folder.
+   * Each entry carries the collectionName (resolved client-side) so we avoid
+   * extra Firestore reads.  The items must all belong to the SAME collection.
+   */
+  async reorder(
+    items: { id: string; collectionName: string; order: number }[]
+  ): Promise<void> {
+    await ensureFirebaseAuthReady();
+    const db = getClientDb();
+    const BATCH_SIZE = 490;
+    let batch = writeBatch(db);
+    let ops = 0;
+    for (const item of items) {
+      batch.update(doc(folderQuestionsCol(item.collectionName), item.id), {
+        order: item.order,
+        updatedAt: serverTimestamp(),
+      });
+      ops++;
+      if (ops >= BATCH_SIZE) {
+        await batch.commit();
+        batch = writeBatch(db);
+        ops = 0;
+      }
+    }
+    if (ops > 0) await batch.commit();
   },
 
   async checkDuplicates(questions: string[], folderId?: string): Promise<{ duplicates: DuplicateMatch[] }> {
