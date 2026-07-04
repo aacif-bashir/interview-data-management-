@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowUpToLine, Plus, Trash2, CopyCheck } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
+import { CopyCheck, Loader2 } from "lucide-react";
+import { MarkdownHtml } from "@/components/markdown/MarkdownHtml";
 import {
   Tooltip,
   TooltipContent,
@@ -10,19 +10,21 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { zipRows } from "@/lib/paste/zip";
+import { renderApi } from "@/lib/api-client";
 import type { DuplicateMatch } from "@/types";
 
-type Column = "q" | "a";
-
 /**
- * Editable Q | A reconciliation table. Each column can be edited independently
- * so the user can realign offsets when the auto-split produced a mismatch.
+ * Read-only Q | A preview table.
+ * Each cell renders the stored Markdown string via the shared server-side
+ * render pipeline (shiki syntax-highlighting), matching exactly what the
+ * user will see in StudyPanel and QuestionListPanel.
  */
 export function PreviewTable({
   questions,
   answers,
-  onChange,
   duplicates,
+  // Keep onChange in the signature for compatibility but the table is now read-only.
+  onChange,
 }: {
   questions: string[];
   answers: string[];
@@ -31,105 +33,6 @@ export function PreviewTable({
   duplicates?: Map<number, DuplicateMatch>;
 }) {
   const rows = zipRows(questions, answers);
-
-  function colArray(col: Column) {
-    return col === "q" ? questions : answers;
-  }
-  function setCol(col: Column, next: string[]) {
-    if (col === "q") onChange(next, answers);
-    else onChange(questions, next);
-  }
-
-  // Edit a single cell's text.
-  function editCell(col: Column, i: number, text: string) {
-    const arr = [...colArray(col)];
-    // Pad with empty strings if editing past current length (unmatched cell).
-    while (arr.length <= i) arr.push("");
-    arr[i] = text;
-    setCol(col, arr);
-  }
-
-  // Merge cell i into i-1 (joined with a blank line), removing row i in this col.
-  function mergeUp(col: Column, i: number) {
-    if (i === 0) return;
-    const arr = [...colArray(col)];
-    arr[i - 1] = `${arr[i - 1] ?? ""}\n\n${arr[i] ?? ""}`.trim();
-    arr.splice(i, 1);
-    setCol(col, arr);
-  }
-
-  // Insert an empty cell at i (shifts this column down to realign).
-  function insertAt(col: Column, i: number) {
-    const arr = [...colArray(col)];
-    arr.splice(i, 0, "");
-    setCol(col, arr);
-  }
-
-  // Delete cell at i (shifts this column up).
-  function deleteAt(col: Column, i: number) {
-    const arr = [...colArray(col)];
-    arr.splice(i, 1);
-    setCol(col, arr);
-  }
-
-  function Cell({ col, i }: { col: Column; i: number }) {
-    const arr = colArray(col);
-    const value = arr[i] ?? null;
-    const missing = value === null;
-    return (
-      <td className="group/cell w-1/2 align-top p-1">
-        <div
-          className={cn(
-            "overflow-hidden rounded-lg border transition-colors focus-within:border-primary/50",
-            missing
-              ? "border-destructive/50 bg-destructive/5"
-              : "border-border/70"
-          )}
-        >
-          <Textarea
-            value={value ?? ""}
-            onChange={(e) => editCell(col, i, e.target.value)}
-            rows={3}
-            placeholder={missing ? "(missing — type or insert)" : ""}
-            className="resize-y border-0 bg-transparent font-mono text-xs shadow-none focus-visible:ring-0 max-h-48"
-          />
-          <div className="flex items-center gap-0.5 border-t bg-muted/30 px-1 py-0.5 opacity-0 transition-opacity group-hover/cell:opacity-100 focus-within:opacity-100">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-6"
-              title="Merge into row above"
-              disabled={i === 0}
-              onClick={() => mergeUp(col, i)}
-            >
-              <ArrowUpToLine className="size-3.5" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-6"
-              title="Insert empty cell here (shift down)"
-              onClick={() => insertAt(col, i)}
-            >
-              <Plus className="size-3.5" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-6"
-              title="Delete this cell (shift up)"
-              onClick={() => deleteAt(col, i)}
-            >
-              <Trash2 className="size-3.5" />
-            </Button>
-          </div>
-        </div>
-      </td>
-    );
-  }
 
   return (
     <div className="overflow-hidden rounded-xl border">
@@ -177,13 +80,67 @@ export function PreviewTable({
                     )}
                   </div>
                 </td>
-                <Cell col="q" i={row.index} />
-                <Cell col="a" i={row.index} />
+                <RenderedCell markdown={questions[row.index] ?? null} />
+                <RenderedCell markdown={answers[row.index] ?? null} />
               </tr>
             );
           })}
         </tbody>
       </table>
     </div>
+  );
+}
+
+/** Renders a single Markdown string as styled HTML via the render API. */
+function RenderedCell({ markdown }: { markdown: string | null }) {
+  const [html, setHtml] = useState("");
+  const [loading, setLoading] = useState(false);
+  const missing = markdown === null;
+
+  useEffect(() => {
+    if (!markdown?.trim()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing preview
+      setHtml("");
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    renderApi
+      .many([markdown])
+      .then(({ html: rendered }) => {
+        if (!cancelled) setHtml(rendered[0] ?? "");
+      })
+      .catch(() => {
+        /* leave last render on failure */
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [markdown]);
+
+  return (
+    <td className="w-1/2 align-top p-2">
+      <div
+        className={cn(
+          "min-h-[3rem] overflow-auto rounded-lg border px-3 py-2 text-sm",
+          missing
+            ? "border-destructive/50 bg-destructive/5 text-muted-foreground italic"
+            : "border-border/70 bg-background",
+        )}
+      >
+        {loading ? (
+          <Loader2 className="size-4 animate-spin text-muted-foreground" />
+        ) : missing ? (
+          <span className="text-xs">(missing)</span>
+        ) : html ? (
+          <MarkdownHtml html={html} />
+        ) : (
+          <span className="text-xs italic text-muted-foreground">(empty)</span>
+        )}
+      </div>
+    </td>
   );
 }

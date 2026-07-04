@@ -26,6 +26,7 @@ import { MarkdownHtml } from "@/components/markdown/MarkdownHtml";
 import { AnswerReveal } from "./AnswerReveal";
 import { EditQuestionDialog } from "./EditQuestionDialog";
 import { MoveQuestionDialog } from "./MoveQuestionDialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { questionsApi, renderApi } from "@/lib/api-client";
@@ -164,6 +165,7 @@ function QuestionStudy({
   const [revealed, setRevealed] = useState(revealByDefault);
   const [editing, setEditing] = useState(false);
   const [moving, setMoving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const loadDetail = useCallback(async (id: string) => {
     try {
@@ -221,7 +223,6 @@ function QuestionStudy({
 
   async function remove() {
     if (!detail) return;
-    if (!window.confirm("Delete this question? This cannot be undone.")) return;
     try {
       await questionsApi.remove(detail._id);
       toast.success("Question deleted");
@@ -307,7 +308,7 @@ function QuestionStudy({
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={remove}
+                onClick={() => setConfirmDelete(true)}
                 disabled={!detail}
                 aria-label="Delete"
               >
@@ -411,6 +412,14 @@ function QuestionStudy({
               setDetail(updated);
               onChanged();
             }}
+          />
+          <ConfirmDialog
+            open={confirmDelete}
+            onOpenChange={setConfirmDelete}
+            title="Delete question?"
+            description="This action cannot be undone. The question will be permanently removed."
+            confirmLabel="Delete"
+            onConfirm={remove}
           />
         </>
       )}

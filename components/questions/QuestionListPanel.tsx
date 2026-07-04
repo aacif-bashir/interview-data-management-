@@ -6,6 +6,7 @@ import { Loader2, Inbox, GripVertical, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -310,6 +311,7 @@ export function QuestionListPanel({
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [pendingDeleteQ, setPendingDeleteQ] = useState<QuestionListItem | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const folder = filters.folderId ? findNode(tree, filters.folderId) : null;
@@ -465,24 +467,23 @@ export function QuestionListPanel({
 
   const deleteQuestion = useCallback(
     async (q: QuestionListItem) => {
-      if (
-        !window.confirm(
-          `Delete this question?\n\n"${q.title || "(untitled)"}"\n\nThis cannot be undone.`,
-        )
-      )
-        return;
-      setItems((prev) => prev.filter((it) => it._id !== q._id));
-      try {
-        await questionsApi.remove(q._id);
-        toast.success("Question deleted");
-        onMutated?.(q._id);
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Failed to delete");
-        load();
-      }
+      // Open the confirm dialog instead of window.confirm
+      setPendingDeleteQ(q);
     },
-    [load, onMutated],
+    [],
   );
+
+  async function confirmDeleteQuestion(q: QuestionListItem) {
+    setItems((prev) => prev.filter((it) => it._id !== q._id));
+    try {
+      await questionsApi.remove(q._id);
+      toast.success("Question deleted");
+      onMutated?.(q._id);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to delete");
+      load();
+    }
+  }
 
   const isDndEnabled = canEdit && Boolean(filters.folderId);
 
@@ -598,6 +599,21 @@ export function QuestionListPanel({
           </div>
         )}
       </div>
+
+      {/* Confirm delete dialog */}
+      <ConfirmDialog
+        open={Boolean(pendingDeleteQ)}
+        onOpenChange={(open) => { if (!open) setPendingDeleteQ(null); }}
+        title="Delete question?"
+        description={pendingDeleteQ ? `"${pendingDeleteQ.title || "(untitled)"}" will be permanently removed. This cannot be undone.` : undefined}
+        confirmLabel="Delete"
+        onConfirm={() => {
+          if (pendingDeleteQ) {
+            setPendingDeleteQ(null);
+            confirmDeleteQuestion(pendingDeleteQ);
+          }
+        }}
+      />
     </div>
   );
 }

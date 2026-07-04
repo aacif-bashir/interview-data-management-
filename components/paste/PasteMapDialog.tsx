@@ -6,7 +6,6 @@ import {
   ArrowRight,
   ArrowLeft,
   Loader2,
-  Wand2,
   ClipboardPaste,
   Check,
   CopyCheck,
@@ -22,15 +21,10 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { FolderPicker } from "@/components/folders/FolderPicker";
 import { TagsInput } from "@/components/questions/TagsInput";
-import { StrategyPicker } from "./StrategyPicker";
-import { MarkdownTextarea } from "./MarkdownTextarea";
+import { QuillEditor } from "./QuillEditor";
 import { PreviewTable } from "./PreviewTable";
-import {
-  splitBlock,
-  detectStrategy,
-  type SplitStrategy,
-} from "@/lib/paste/split";
 import { countMismatch } from "@/lib/paste/zip";
+import { quillHtmlToMarkdown, isQuillEmpty } from "@/lib/paste/quillToMarkdown";
 import { cn } from "@/lib/utils";
 import { questionsApi } from "@/lib/api-client";
 import type { DuplicateMatch, FolderTreeNode, QuestionStatus, UserRecord } from "@/types";
@@ -54,15 +48,9 @@ export function PasteMapDialog({
 }) {
   const [step, setStep] = useState<Step>("input");
 
-  // Raw pasted text + per-side strategies.
+  // Rich-text content from the Quill editors.
   const [qText, setQText] = useState("");
   const [aText, setAText] = useState("");
-  const [qStrategy, setQStrategy] = useState<SplitStrategy>({
-    kind: "numbered",
-  });
-  const [aStrategy, setAStrategy] = useState<SplitStrategy>({
-    kind: "numbered",
-  });
 
   // Reconciled arrays in the preview (editable, may diverge from a re-split).
   const [questions, setQuestions] = useState<string[]>([]);
@@ -73,8 +61,8 @@ export function PasteMapDialog({
   // Keep the internal folder selection in sync with whichever folder is open
   // in the workspace. This fires when the dialog opens AND when the user
   // switches folders while the dialog was already mounted.
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional sync with parent prop
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional sync with parent prop
     if (open) setFolderId(defaultFolderId);
   }, [open, defaultFolderId]);
   const [tags, setTags] = useState<string[]>([]);
@@ -141,8 +129,6 @@ export function PasteMapDialog({
     setStep("input");
     setQText("");
     setAText("");
-    setQStrategy({ kind: "numbered" });
-    setAStrategy({ kind: "numbered" });
     setQuestions([]);
     setAnswers([]);
     // Restore to the currently-open folder, not null.
@@ -154,21 +140,16 @@ export function PasteMapDialog({
     setDuplicates(new Map());
   }
 
-  function autoDetect() {
-    if (qText.trim()) setQStrategy(detectStrategy(qText));
-    if (aText.trim()) setAStrategy(detectStrategy(aText));
-    toast.success("Detected splitting strategy");
-  }
-
   function goToPreview() {
-    const q = splitBlock(qText, qStrategy);
-    const a = splitBlock(aText, aStrategy);
-    if (q.length === 0 && a.length === 0) {
-      toast.error("Nothing to split — paste questions and answers first");
+    // Convert Quill HTML → Markdown so the full render pipeline works.
+    const qMd = isQuillEmpty(qText) ? "" : quillHtmlToMarkdown(qText);
+    const aMd = isQuillEmpty(aText) ? "" : quillHtmlToMarkdown(aText);
+    if (!qMd && !aMd) {
+      toast.error("Nothing to preview — enter a question and answer first");
       return;
     }
-    setQuestions(q);
-    setAnswers(a);
+    setQuestions(qMd ? [qMd] : []);
+    setAnswers(aMd ? [aMd] : []);
     setStep("preview");
   }
 
@@ -253,43 +234,24 @@ export function PasteMapDialog({
 
           {step === "input" ? (
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-5">
-              <div className="mb-3 flex items-center justify-between">
+              <div className="mb-3">
                 <p className="text-lg font-medium">Source text</p>
-                <Button variant="outline" size="sm" onClick={autoDetect}>
-                  <Wand2 className="size-4" /> Auto-detect split
-                </Button>
               </div>
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                 <div className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between">
-                    <Label>Questions</Label>
-                    <span className="text-xs text-muted-foreground">
-                      {splitBlock(qText, qStrategy).length} detected
-                    </span>
-                  </div>
-                  <StrategyPicker value={qStrategy} onChange={setQStrategy} />
-                  <MarkdownTextarea
+                  <Label>Question</Label>
+                  <QuillEditor
                     value={qText}
                     onChange={setQText}
-                    placeholder={
-                      "1. What is a closure?\n2. Explain the event loop.\n…"
-                    }
+                    placeholder="Type or paste the question here…"
                   />
                 </div>
                 <div className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between">
-                    <Label>Answers</Label>
-                    <span className="text-xs text-muted-foreground">
-                      {splitBlock(aText, aStrategy).length} detected
-                    </span>
-                  </div>
-                  <StrategyPicker value={aStrategy} onChange={setAStrategy} />
-                  <MarkdownTextarea
+                  <Label>Answer</Label>
+                  <QuillEditor
                     value={aText}
                     onChange={setAText}
-                    placeholder={
-                      "1. A closure is a function with its scope.\n2. …"
-                    }
+                    placeholder="Type or paste the answer here…"
                   />
                 </div>
               </div>

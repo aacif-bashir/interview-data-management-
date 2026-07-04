@@ -205,3 +205,53 @@
 .dark .md pre span {
   color: var(--shiki-dark);
 }
+
+/* ── React Quill (snow theme) integration ─────────────────────────────────── */
+.quill-wrapper .ql-toolbar.ql-snow {
+  border-color: var(--border);
+  border-top-left-radius: var(--radius-md);
+  border-top-right-radius: var(--radius-md);
+  background: var(--background);
+  padding: 6px 8px;
+}
+.quill-wrapper .ql-container.ql-snow {
+  border-color: var(--border);
+  border-bottom-left-radius: var(--radius-md);
+  border-bottom-right-radius: var(--radius-md);
+  background: var(--background);
+  font-size: 0.875rem;
+  flex: 1;
+  overflow-y: auto;
+}
+.quill-wrapper .ql-editor {
+  min-height: 28vh;
+  max-height: 32vh;
+  overflow-y: auto;
+  color: var(--foreground);
+  line-height: 1.6;
+}
+.quill-wrapper .ql-editor.ql-blank::before {
+  color: var(--muted-foreground);
+  font-style: normal;
+}
+/* Dark-mode toolbar icons */
+.dark .quill-wrapper .ql-stroke {
+  stroke: var(--foreground) !important;
+}
+.dark .quill-wrapper .ql-fill {
+  fill: var(--foreground) !important;
+}
+.dark .quill-wrapper .ql-picker-label,
+.dark .quill-wrapper .ql-picker-options {
+  color: var(--foreground);
+  background: var(--card);
+  border-color: var(--border);
+}
+.dark .quill-wrapper .ql-toolbar button:hover .ql-stroke,
+.dark .quill-wrapper .ql-toolbar button.ql-active .ql-stroke {
+  stroke: var(--primary) !important;
+}
+.dark .quill-wrapper .ql-toolbar button:hover .ql-fill,
+.dark .quill-wrapper .ql-toolbar button.ql-active .ql-fill {
+  fill: var(--primary) !important;
+}
