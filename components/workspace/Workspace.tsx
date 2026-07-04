@@ -17,10 +17,12 @@ import type {
   QuestionListItem,
   UserRecord,
 } from "@/types";
-import { FolderSidebar } from "@/components/folders/FolderSidebar";
+import { FolderSidebar } from "@/components/study-library/FolderSidebar";
 import { QuestionListPanel } from "@/components/questions/QuestionListPanel";
 import { StudyPanel } from "@/components/study/StudyPanel";
 import { PasteMapDialog } from "@/components/paste/PasteMapDialog";
+
+import { Dashboard } from "@/app/(app)/dashboard/index";
 
 export interface WorkspaceContextValue {
   selectedFolderId: string | null;
@@ -31,10 +33,14 @@ export function Workspace({
   initialTree,
   userRole,
   user,
+  mode = "workspace",
+  initialFolderId,
 }: {
   initialTree: FolderTreeNode[];
   userRole: string;
   user: UserRecord | null;
+  mode?: "workspace" | "dashboard" | "settings";
+  initialFolderId?: string | null;
 }) {
   const canEdit = userRole === "admin" || userRole === "editor";
   const isMobile = useIsMobile();
@@ -45,9 +51,9 @@ export function Workspace({
   >("questions");
 
   const [tree, setTree] = useState<FolderTreeNode[]>(initialTree);
-  // Default to the first root folder if one exists.
+  // Use initialFolderId if provided, otherwise default to first root folder.
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(
-    initialTree[0]?._id ?? null
+    initialFolderId ?? initialTree[0]?._id ?? null
   );
   const [filters, setFilters] = useState<
     Omit<QuestionListFilters, "folderId" | "cursor">
@@ -102,7 +108,6 @@ export function Workspace({
         setMobileView("questions");
       }}
       onRefreshTree={refreshTree}
-      onOpenPaste={() => setPasteOpen(true)}
       user={user}
       canEdit={canEdit}
     />
@@ -132,6 +137,7 @@ export function Workspace({
         setEditingQuestion(q);
         setPasteOpen(true);
       }}
+      onOpenPaste={() => setPasteOpen(true)}
       canEdit={canEdit}
       user={user}
     />
@@ -183,6 +189,27 @@ export function Workspace({
 
   // --- Mobile: a single active panel + bottom tab bar. ---
   if (isMobile) {
+    if (mode === "dashboard") {
+      return (
+        <div className="flex h-dvh flex-col overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-auto bg-background">
+            <Dashboard user={user} tree={tree} />
+          </div>
+          {/* We might want a way to get back to the sidebar, but for now we'll just show the dashboard. 
+              In a real app, we'd have a top nav with a hamburger menu for the sidebar. */}
+        </div>
+      );
+    }
+    if (mode === "settings") {
+      return (
+        <div className="flex h-dvh flex-col overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-auto bg-background p-8 flex items-center justify-center">
+            <p className="text-muted-foreground">Settings Page</p>
+          </div>
+        </div>
+      );
+    }
+
     const tabs = [
       { id: "folders" as const, label: "Folders", icon: FolderTree },
       { id: "questions" as const, label: "Questions", icon: ListChecks },
@@ -235,24 +262,32 @@ export function Workspace({
 
   // --- Desktop: the three-panel resizable workspace. ---
   return (
-    <div className="flex h-screen flex-col overflow-hidden">
-      <ResizablePanelGroup orientation="horizontal" className="flex-1">
-        <ResizablePanel defaultSize="20" minSize="14" maxSize="32" className="min-w-0 overflow-hidden">
-          {folderSidebar}
-        </ResizablePanel>
+    <div className="flex h-screen overflow-hidden">
+      <div className="w-80 shrink-0 border-r border-border overflow-hidden bg-sidebar">
+        {folderSidebar}
+      </div>
 
-        <ResizableHandle withHandle />
+      {mode === "dashboard" ? (
+        <div className="flex-1 min-w-0 overflow-hidden bg-background">
+          <Dashboard user={user} tree={tree} />
+        </div>
+      ) : mode === "settings" ? (
+        <div className="flex-1 min-w-0 overflow-hidden bg-background p-8 flex items-center justify-center">
+          <p className="text-muted-foreground">Settings Page</p>
+        </div>
+      ) : (
+        <ResizablePanelGroup orientation="horizontal" className="flex-1 min-w-0">
+          <ResizablePanel defaultSize={50} minSize={30} className="min-w-0 overflow-hidden">
+            {questionListPanel}
+          </ResizablePanel>
 
-        <ResizablePanel defaultSize="42" minSize="28" className="min-w-0 overflow-hidden">
-          {questionListPanel}
-        </ResizablePanel>
+          <ResizableHandle withHandle />
 
-        <ResizableHandle withHandle />
-
-        <ResizablePanel defaultSize="38" minSize="24" className="min-w-0 overflow-hidden">
-          {studyPanel}
-        </ResizablePanel>
-      </ResizablePanelGroup>
+          <ResizablePanel defaultSize={50} minSize={30} className="min-w-0 overflow-hidden">
+            {studyPanel}
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      )}
 
       {pasteDialog}
     </div>

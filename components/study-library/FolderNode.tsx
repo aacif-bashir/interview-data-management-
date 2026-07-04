@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ChevronRight,
   Folder as FolderIcon,
@@ -45,6 +46,15 @@ export function FolderNode({
   const [expanded, setExpanded] = useState(true);
   const [renaming, setRenaming] = useState(false);
   const [creatingChild, setCreatingChild] = useState(false);
+  const router = useRouter();
+
+  function folderSlug(name: string) {
+    return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  }
+
+  function handleSelect() {
+    router.push(`/studylibrary/${folderSlug(node.name)}`);
+  }
 
   const hasChildren = node.children.length > 0;
   const isSelected = selectedFolderId === node._id;
@@ -108,11 +118,11 @@ export function FolderNode({
           <div
             role="button"
             tabIndex={0}
-            onClick={() => onSelectFolder(node._id)}
+            onClick={() => handleSelect()}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
-                onSelectFolder(node._id);
+                handleSelect();
               }
             }}
             style={{ paddingLeft: node.depth * 14 + 6 }}

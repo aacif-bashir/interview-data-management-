@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { FolderPicker } from "@/components/folders/FolderPicker";
+import { FolderPicker } from "@/components/study-library/FolderPicker";
 import { TagsInput } from "@/components/questions/TagsInput";
 import { QuillEditor } from "./QuillEditor";
 import { PreviewTable } from "./PreviewTable";
@@ -45,7 +45,7 @@ export function PasteMapDialog({
   tree: FolderTreeNode[];
   defaultFolderId: string | null;
   user: UserRecord | null;
-  onSaved: () => void;
+  onSaved: (firstQuestionId?: string) => void;
   /** When provided the dialog opens in edit-mode for this existing question. */
   editQuestion?: QuestionListItem | QuestionDTO | null;
 }) {
@@ -216,7 +216,7 @@ export function PasteMapDialog({
         toast.success("Question updated");
         reset();
         onOpenChange(false);
-        onSaved();
+        onSaved(editQuestion._id);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Failed to save");
         setSaving(false);

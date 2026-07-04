@@ -100,7 +100,7 @@ export async function proxy(request: NextRequest) {
 
   // Already signed in — bounce off /login back to the app.
   if (authed && pathname === "/login") {
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   if (isPublic || authed) {

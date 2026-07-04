@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { useState } from "react";
-import { Loader2, Inbox, GripVertical, MoreVertical, Pencil } from "lucide-react";
+import {
+  Loader2,
+  Inbox,
+  GripVertical,
+  MoreVertical,
+  Pencil,
+  ClipboardPaste,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -155,12 +162,11 @@ function SortableQuestionRow({
                 #{t}
               </span>
             ))}
+            {q.favorite && (
+              <Star className="mt-0.5 size-3.5 shrink-0 fill-amber-400 text-amber-400" />
+            )}
           </span>
         </span>
-
-        {q.favorite && (
-          <Star className="mt-0.5 size-3.5 shrink-0 fill-amber-400 text-amber-400" />
-        )}
       </button>
 
       {/* ⋮ More-options button — floats over the right edge on hover/open */}
@@ -278,6 +284,7 @@ export function QuestionListPanel({
   onItemsLoaded,
   onMutated,
   onEditQuestion,
+  onOpenPaste,
   canEdit = false,
   user,
 }: {
@@ -293,6 +300,7 @@ export function QuestionListPanel({
   onMutated?: (deletedId?: string) => void;
   /** Called when the user clicks "Edit" on a row — parent opens PasteMapDialog. */
   onEditQuestion?: (q: QuestionListItem) => void;
+  onOpenPaste?: () => void;
   canEdit?: boolean;
   user?: UserRecord | null;
 }) {
@@ -301,7 +309,9 @@ export function QuestionListPanel({
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
-  const [pendingDeleteQ, setPendingDeleteQ] = useState<QuestionListItem | null>(null);
+  const [pendingDeleteQ, setPendingDeleteQ] = useState<QuestionListItem | null>(
+    null,
+  );
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const folder = filters.folderId ? findNode(tree, filters.folderId) : null;
@@ -437,13 +447,10 @@ export function QuestionListPanel({
     [load, onMutated],
   );
 
-  const deleteQuestion = useCallback(
-    async (q: QuestionListItem) => {
-      // Open the confirm dialog instead of window.confirm
-      setPendingDeleteQ(q);
-    },
-    [],
-  );
+  const deleteQuestion = useCallback(async (q: QuestionListItem) => {
+    // Open the confirm dialog instead of window.confirm
+    setPendingDeleteQ(q);
+  }, []);
 
   async function confirmDeleteQuestion(q: QuestionListItem) {
     setItems((prev) => prev.filter((it) => it._id !== q._id));
@@ -473,18 +480,62 @@ export function QuestionListPanel({
             </span>
           )}
         </h2>
-        {folder && (
-          <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-sm text-muted-foreground">
-            <Checkbox
-              checked={currentFilters.subtree ?? false}
-              onCheckedChange={(c) =>
-                onFiltersChange({ ...currentFilters, subtree: Boolean(c) })
-              }
-            />
-            Subfolders
-          </label>
-        )}
+        <div className="flex items-center gap-3">
+          {folder && (
+            <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-sm text-muted-foreground">
+              <Checkbox
+                checked={currentFilters.subtree ?? false}
+                onCheckedChange={(c) =>
+                  onFiltersChange({ ...currentFilters, subtree: Boolean(c) })
+                }
+              />
+              Subfolders
+            </label>
+          )}
+          {canEdit && onOpenPaste && (
+            <Button
+              size="sm"
+              onClick={onOpenPaste}
+              className="h-7 px-2 text-xs"
+            >
+              <ClipboardPaste className="mr-1.5 size-3.5" />
+              Paste &amp; Map
+            </Button>
+          )}
+        </div>
       </div>
+
+      {/* Statistics Row */}
+      {items.length > 0 && (
+        <div className="px-4 py-2 flex flex-wrap gap-x-4 gap-y-2 border-b text-xs text-muted-foreground bg-muted/20">
+          <div className="flex items-center gap-1.5">
+            <span className="font-medium text-foreground">{items.length}</span>{" "}
+            Total
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="font-medium text-emerald-600 dark:text-emerald-400">
+              {items.filter((q) => q.status === "mastered").length}
+            </span>{" "}
+            Completed
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="font-medium text-amber-600 dark:text-amber-400">
+              {items.filter((q) => q.status !== "mastered").length}
+            </span>{" "}
+            Pending
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="font-medium text-rose-500">
+              {items.filter((q) => q.favorite).length}
+            </span>{" "}
+            Favorites
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="font-medium text-foreground">Medium</span> Avg
+            Difficulty
+          </div>
+        </div>
+      )}
 
       <FilterBar filters={currentFilters} onChange={onFiltersChange} />
 
@@ -506,6 +557,17 @@ export function QuestionListPanel({
             <p className="text-sm">
               Use &quot;Paste &amp; Map&quot; to add questions to a folder.
             </p>
+            {canEdit && onOpenPaste && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onOpenPaste}
+                className="mt-2"
+              >
+                <ClipboardPaste className="mr-2 size-4" />
+                Paste &amp; Map
+              </Button>
+            )}
           </div>
         ) : (
           <DndContext
@@ -574,9 +636,15 @@ export function QuestionListPanel({
       {/* Confirm delete dialog */}
       <ConfirmDialog
         open={Boolean(pendingDeleteQ)}
-        onOpenChange={(open) => { if (!open) setPendingDeleteQ(null); }}
+        onOpenChange={(open) => {
+          if (!open) setPendingDeleteQ(null);
+        }}
         title="Delete question?"
-        description={pendingDeleteQ ? `"${pendingDeleteQ.title || "(untitled)"}" will be permanently removed. This cannot be undone.` : undefined}
+        description={
+          pendingDeleteQ
+            ? `"${pendingDeleteQ.title || "(untitled)"}" will be permanently removed. This cannot be undone.`
+            : undefined
+        }
         confirmLabel="Delete"
         onConfirm={() => {
           if (pendingDeleteQ) {
