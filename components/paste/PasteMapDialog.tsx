@@ -27,7 +27,7 @@ import { countMismatch } from "@/lib/paste/zip";
 import { quillHtmlToMarkdown, isQuillEmpty } from "@/lib/paste/quillToMarkdown";
 import { cn } from "@/lib/utils";
 import { questionsApi } from "@/lib/api-client";
-import type { DuplicateMatch, FolderTreeNode, QuestionStatus, UserRecord } from "@/types";
+import type { DuplicateMatch, FolderTreeNode, QuestionDTO, QuestionListItem, QuestionStatus, UserRecord } from "@/types";
 
 type Step = "input" | "preview";
 
@@ -38,6 +38,7 @@ export function PasteMapDialog({
   defaultFolderId,
   user,
   onSaved,
+  editQuestion,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -45,6 +46,8 @@ export function PasteMapDialog({
   defaultFolderId: string | null;
   user: UserRecord | null;
   onSaved: () => void;
+  /** When provided the dialog opens in edit-mode for this existing question. */
+  editQuestion?: QuestionListItem | QuestionDTO | null;
 }) {
   const [step, setStep] = useState<Step>("input");
 
@@ -58,13 +61,37 @@ export function PasteMapDialog({
 
   const [folderId, setFolderId] = useState<string | null>(defaultFolderId);
 
+  const isEditMode = Boolean(editQuestion);
+
   // Keep the internal folder selection in sync with whichever folder is open
   // in the workspace. This fires when the dialog opens AND when the user
   // switches folders while the dialog was already mounted.
   useEffect(() => {
+    if (!open) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional sync with parent prop
-    if (open) setFolderId(defaultFolderId);
-  }, [open, defaultFolderId]);
+    setFolderId(editQuestion ? (editQuestion.folderId ?? defaultFolderId) : defaultFolderId);
+    if (!editQuestion) return;
+
+    if ('question' in editQuestion) {
+      // Already a full QuestionDTO — use it directly.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- pre-populating edit mode from prop
+      setQText((editQuestion as QuestionDTO).question ?? '');
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- pre-populating edit mode from prop
+      setAText((editQuestion as QuestionDTO).answer ?? '');
+    } else {
+      // QuestionListItem — fetch the full detail from the API.
+      questionsApi.get(editQuestion._id).then((dto) => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch after dialog opens
+        setQText(dto.question ?? '');
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch after dialog opens
+        setAText(dto.answer ?? '');
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch after dialog opens
+        setTags(dto.tags ?? []);
+      }).catch(() => {
+        toast.error('Failed to load question details');
+      });
+    }
+  }, [open, defaultFolderId, editQuestion]);
   const [tags, setTags] = useState<string[]>([]);
   const [status, setStatus] = useState<QuestionStatus>("not_studied");
   const [allowUnmatched, setAllowUnmatched] = useState(false);
@@ -141,9 +168,20 @@ export function PasteMapDialog({
   }
 
   function goToPreview() {
-    // Convert Quill HTML → Markdown so the full render pipeline works.
-    const qMd = isQuillEmpty(qText) ? "" : quillHtmlToMarkdown(qText);
-    const aMd = isQuillEmpty(aText) ? "" : quillHtmlToMarkdown(aText);
+    // In edit mode the Q/A fields contain raw Markdown (loaded from DB) so we
+    // skip the Quill-HTML→Markdown conversion for those fields that haven't
+    // been touched, but still route through the same preview flow.
+    let qMd: string;
+    let aMd: string;
+    if (isEditMode && editQuestion && "question" in editQuestion) {
+      // Values may be raw Markdown (pre-existing) or Quill HTML (user re-typed).
+      // isQuillEmpty / quillHtmlToMarkdown handle both safely.
+      qMd = isQuillEmpty(qText) ? "" : (qText.startsWith("<") ? quillHtmlToMarkdown(qText) : qText);
+      aMd = isQuillEmpty(aText) ? "" : (aText.startsWith("<") ? quillHtmlToMarkdown(aText) : aText);
+    } else {
+      qMd = isQuillEmpty(qText) ? "" : quillHtmlToMarkdown(qText);
+      aMd = isQuillEmpty(aText) ? "" : quillHtmlToMarkdown(aText);
+    }
     if (!qMd && !aMd) {
       toast.error("Nothing to preview — enter a question and answer first");
       return;
@@ -158,6 +196,35 @@ export function PasteMapDialog({
       toast.error("Choose a folder to save into");
       return;
     }
+
+    // ── Edit mode: update the single existing question ──────────────────────
+    if (isEditMode && editQuestion) {
+      const q = questions[0] ?? "";
+      const a = answers[0] ?? "";
+      if (!q.trim()) {
+        toast.error("Question cannot be empty");
+        return;
+      }
+      setSaving(true);
+      try {
+        await questionsApi.update(editQuestion._id, {
+          question: q,
+          answer: a,
+          tags,
+          folderId,
+        });
+        toast.success("Question updated");
+        reset();
+        onOpenChange(false);
+        onSaved();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed to save");
+        setSaving(false);
+      }
+      return;
+    }
+
+    // ── Create mode: bulk-create ─────────────────────────────────────────────
     const len = Math.max(questions.length, answers.length);
     const pairs = Array.from({ length: len }, (_, i) => ({
       question: questions[i] ?? "",
@@ -216,7 +283,7 @@ export function PasteMapDialog({
         <DialogHeader className="border-b px-6 py-3">
           <DialogTitle className="flex items-center gap-2 text-base">
             <ClipboardPaste className="size-4 text-muted-foreground" />
-            Paste &amp; Map
+            {isEditMode ? "Edit question" : "Paste & Map"}
           </DialogTitle>
         </DialogHeader>
 
@@ -364,7 +431,9 @@ export function PasteMapDialog({
                 disabled={saving || (mismatch && !allowUnmatched)}
               >
                 {saving && <Loader2 className="size-4 animate-spin" />}
-                Save {Math.max(questions.length, answers.length)} question(s)
+                {isEditMode
+                  ? "Save changes"
+                  : `Save ${Math.max(questions.length, answers.length)} question(s)`}
               </Button>
             </>
           )}

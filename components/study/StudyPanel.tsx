@@ -3,13 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Star,
-  Trash2,
-  Pencil,
   Loader2,
   BookOpen,
   ChevronLeft,
   ChevronRight,
-  FolderInput,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -24,9 +21,6 @@ import {
 } from "@/components/ui/select";
 import { MarkdownHtml } from "@/components/markdown/MarkdownHtml";
 import { AnswerReveal } from "./AnswerReveal";
-import { EditQuestionDialog } from "./EditQuestionDialog";
-import { MoveQuestionDialog } from "./MoveQuestionDialog";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { questionsApi, renderApi } from "@/lib/api-client";
@@ -163,9 +157,6 @@ function QuestionStudy({
   const [answerHtml, setAnswerHtml] = useState("");
   const [loading, setLoading] = useState(true);
   const [revealed, setRevealed] = useState(revealByDefault);
-  const [editing, setEditing] = useState(false);
-  const [moving, setMoving] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const loadDetail = useCallback(async (id: string) => {
     try {
@@ -218,17 +209,6 @@ function QuestionStudy({
       onChanged();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
-    }
-  }
-
-  async function remove() {
-    if (!detail) return;
-    try {
-      await questionsApi.remove(detail._id);
-      toast.success("Question deleted");
-      onDeleted();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to delete");
     }
   }
 
@@ -285,37 +265,6 @@ function QuestionStudy({
             />
             Reveal all
           </Label>
-          {canEdit && (
-            <>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setMoving(true)}
-                disabled={!detail}
-                aria-label="Move to folder"
-              >
-                <FolderInput className="size-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setEditing(true)}
-                disabled={!detail}
-                aria-label="Edit"
-              >
-                <Pencil className="size-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setConfirmDelete(true)}
-                disabled={!detail}
-                aria-label="Delete"
-              >
-                <Trash2 className="size-4" />
-              </Button>
-            </>
-          )}
         </div>
       </div>
 
@@ -386,43 +335,6 @@ function QuestionStudy({
         )}
       </ScrollArea>
 
-      {detail && (
-        <>
-          <EditQuestionDialog
-            key={detail._id}
-            open={editing}
-            onOpenChange={setEditing}
-            tree={tree}
-            question={detail}
-            onSaved={(updated) => {
-              setEditing(false);
-              setDetail(updated);
-              loadDetail(updated._id);
-              onChanged();
-            }}
-          />
-          <MoveQuestionDialog
-            key={`move-${detail._id}`}
-            open={moving}
-            onOpenChange={setMoving}
-            tree={tree}
-            question={detail}
-            onMoved={(updated) => {
-              setMoving(false);
-              setDetail(updated);
-              onChanged();
-            }}
-          />
-          <ConfirmDialog
-            open={confirmDelete}
-            onOpenChange={setConfirmDelete}
-            title="Delete question?"
-            description="This action cannot be undone. The question will be permanently removed."
-            confirmLabel="Delete"
-            onConfirm={remove}
-          />
-        </>
-      )}
     </div>
   );
 }

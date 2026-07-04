@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useId, useMemo } from "react";
 import dynamic from "next/dynamic";
-import { SquareCode, Code, Bold as BoldIcon } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { SquareCode, Code } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -42,7 +41,7 @@ export function QuillEditor({
 }: QuillEditorProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const quillRef = useRef<any>(null);
-  const [lang, setLang] = useState("ts");
+  const toolbarId = `quill-toolbar-${useId().replace(/:/g, "")}`;
 
   /** Helper: get the underlying Quill instance. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -64,17 +63,16 @@ export function QuillEditor({
       range && range.length > 0 ? quill.getText(range.index, range.length) : "// code here";
 
     const fence = "```";
-    const langTag = lang.trim();
-    // Build: \n```ts\ncode\n```\n
-    const block = `\n${fence}${langTag}\n${selected}\n${fence}\n`;
+    // Build: \n```\ncode\n```\n
+    const block = `\n${fence}\n${selected}\n${fence}\n`;
 
     if (range && range.length > 0) quill.deleteText(range.index, range.length);
     quill.insertText(index, block, "user");
 
     // Place cursor on the code content line
-    const contentStart = index + 1 + fence.length + langTag.length + 1; // after \n```lang\n
+    const contentStart = index + 1 + fence.length + 1; // after \n```\n
     quill.setSelection(contentStart, selected.length);
-  }, [lang]);
+  }, []);
 
   /** Insert inline code backticks around selection. */
   const insertInlineCode = useCallback(() => {
@@ -89,92 +87,87 @@ export function QuillEditor({
     quill.setSelection(index + 1, selected.length);
   }, []);
 
-  /** Toggle bold on the current selection. */
-  const toggleBold = useCallback(() => {
-    const quill = getQuill();
-    if (!quill) return;
-    const format = quill.getFormat();
-    quill.format("bold", !format.bold);
-  }, []);
-
-  // Quill toolbar modules (built-in snow toolbar).
-  const modules = {
-    toolbar: [
-      [{ header: [1, 2, 3, false] }],
-      ["bold", "italic", "underline", "strike"],
-      [{ list: "ordered" }, { list: "bullet" }],
-      ["blockquote"],
-      ["clean"],
-    ],
-  };
+  // Quill toolbar modules (using a custom container for integrated tools).
+  const modules = useMemo(
+    () => ({
+      toolbar: {
+        container: `#${toolbarId}`,
+      },
+    }),
+    [toolbarId]
+  );
 
   return (
     <div className={cn("flex flex-col gap-2", className)}>
-      {/* ── Custom code-formatter toolbar ── */}
-      <TooltipProvider>
-        <div className="flex items-center gap-1">
-          <Input
-            value={lang}
-            onChange={(e) => setLang(e.target.value)}
-            placeholder="lang"
-            aria-label="Code block language"
-            className="h-7 w-20 text-xs"
-          />
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-7"
-                onClick={insertCodeBlock}
-                aria-label="Code block (```)"
-              >
-                <SquareCode className="size-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Code block (```)</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-7"
-                onClick={insertInlineCode}
-                aria-label="Inline code (`)"
-              >
-                <Code className="size-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Inline code (`)</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-7"
-                onClick={toggleBold}
-                aria-label="Bold (**)"
-              >
-                <BoldIcon className="size-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Bold (**)</TooltipContent>
-          </Tooltip>
-        </div>
-      </TooltipProvider>
-
       {/* ── Quill editor ── */}
       <div
         className={cn(
-          "quill-wrapper overflow-y-auto rounded-md border bg-background",
+          "quill-wrapper overflow-hidden rounded-md border bg-background flex flex-col",
           editorClassName,
         )}
       >
+        {/* Custom Toolbar */}
+        <div id={toolbarId} className="border-b border-border bg-muted/20">
+          <span className="ql-formats">
+            <select className="ql-header" defaultValue="">
+              <option value="1"></option>
+              <option value="2"></option>
+              <option value="3"></option>
+              <option value=""></option>
+            </select>
+          </span>
+          <span className="ql-formats">
+            <button className="ql-bold" aria-label="Bold"></button>
+            <button className="ql-italic" aria-label="Italic"></button>
+            <button className="ql-underline" aria-label="Underline"></button>
+            <button className="ql-strike" aria-label="Strike"></button>
+          </span>
+          <span className="ql-formats">
+            <button className="ql-list" value="ordered" aria-label="Ordered List"></button>
+            <button className="ql-list" value="bullet" aria-label="Bullet List"></button>
+          </span>
+          <span className="ql-formats">
+            <button className="ql-blockquote" aria-label="Blockquote"></button>
+          </span>
+          <span className="ql-formats">
+            <button className="ql-clean" aria-label="Clear formatting"></button>
+          </span>
+          <span className="ql-formats inline-flex items-center gap-1">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-6 hover:bg-muted"
+                    onClick={insertCodeBlock}
+                    aria-label="Code block (```)"
+                  >
+                    <SquareCode className="size-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Code block (```)</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-6 hover:bg-muted"
+                    onClick={insertInlineCode}
+                    aria-label="Inline code (`)"
+                  >
+                    <Code className="size-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Inline code (`)</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </span>
+        </div>
+
         <ReactQuill
           ref={quillRef}
           theme="snow"
@@ -182,7 +175,7 @@ export function QuillEditor({
           onChange={onChange}
           placeholder={placeholder}
           modules={modules}
-          style={{ height: "100%", display: "flex", flexDirection: "column" }}
+          style={{ height: "100%", display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
         />
       </div>
     </div>
