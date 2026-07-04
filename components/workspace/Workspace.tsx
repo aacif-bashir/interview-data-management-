@@ -55,6 +55,7 @@ export function Workspace({
   const [selectedQuestion, setSelectedQuestion] =
     useState<QuestionListItem | null>(null);
   const [pasteOpen, setPasteOpen] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState<QuestionListItem | null>(null);
   // Bumped to force the question list to refetch (after bulk save, delete...).
   const [listRefreshKey, setListRefreshKey] = useState(0);
   // The questions currently loaded in the list panel — drives prev/next nav.
@@ -127,6 +128,10 @@ export function Workspace({
         }
         refreshTree();
       }}
+      onEditQuestion={(q) => {
+        setEditingQuestion(q);
+        setPasteOpen(true);
+      }}
       canEdit={canEdit}
       user={user}
     />
@@ -160,11 +165,16 @@ export function Workspace({
   const pasteDialog = (
     <PasteMapDialog
       open={pasteOpen}
-      onOpenChange={setPasteOpen}
+      onOpenChange={(o) => {
+        setPasteOpen(o);
+        if (!o) setEditingQuestion(null);
+      }}
       tree={tree}
       defaultFolderId={selectedFolderId}
       user={user}
+      editQuestion={editingQuestion}
       onSaved={() => {
+        setEditingQuestion(null);
         refreshList();
         refreshTree();
       }}

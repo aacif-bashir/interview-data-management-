@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { useState } from "react";
-import { Loader2, Inbox, GripVertical, MoreVertical } from "lucide-react";
+import { Loader2, Inbox, GripVertical, MoreVertical, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { questionsApi } from "@/lib/api-client";
-import { findNode, flattenTree } from "@/lib/tree-utils";
+import { findNode } from "@/lib/tree-utils";
 import { StatusBadge } from "./StatusBadge";
 import { FilterBar } from "./FilterBar";
 import {
@@ -32,7 +32,7 @@ import {
   type QuestionStatus,
 } from "@/types";
 import type { UserRecord } from "@/types/user";
-import { Star, StarOff, Trash2, FolderInput } from "lucide-react";
+import { Star, StarOff, Trash2 } from "lucide-react";
 
 // ─── dnd-kit ──────────────────────────────────────────────────────────────────
 import {
@@ -70,9 +70,8 @@ function SortableQuestionRow({
   onSelectQuestion,
   toggleFavorite,
   changeStatus,
-  moveQuestion,
+  editQuestion,
   deleteQuestion,
-  flatFolders,
   isDragDisabled,
 }: {
   q: QuestionListItem;
@@ -83,9 +82,8 @@ function SortableQuestionRow({
   onSelectQuestion: (q: QuestionListItem) => void;
   toggleFavorite: (q: QuestionListItem) => void;
   changeStatus: (q: QuestionListItem, s: QuestionStatus) => void;
-  moveQuestion: (q: QuestionListItem, destId: string) => void;
+  editQuestion: (q: QuestionListItem) => void;
   deleteQuestion: (q: QuestionListItem) => void;
-  flatFolders: { _id: string; name: string; depth: number }[];
   isDragDisabled: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -239,26 +237,15 @@ function SortableQuestionRow({
               </DropdownMenuSubContent>
             </DropdownMenuSub>
 
-            {/* Move to folder submenu */}
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger onClick={(e) => e.stopPropagation()}>
-                <FolderInput className="size-4" /> Move to folder
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="max-h-72 overflow-y-auto">
-                {flatFolders.map((f) => (
-                  <DropdownMenuItem
-                    key={f._id}
-                    disabled={f._id === q.folderId}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      moveQuestion(q, f._id);
-                    }}
-                  >
-                    <span style={{ paddingLeft: f.depth * 12 }}>{f.name}</span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
+            {/* Edit — opens PasteMapDialog in edit mode */}
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                editQuestion(q);
+              }}
+            >
+              <Pencil className="size-4" /> Edit
+            </DropdownMenuItem>
 
             <DropdownMenuSeparator />
 
@@ -290,6 +277,7 @@ export function QuestionListPanel({
   currentFilters,
   onItemsLoaded,
   onMutated,
+  onEditQuestion,
   canEdit = false,
   user,
 }: {
@@ -303,6 +291,8 @@ export function QuestionListPanel({
   currentFilters: Omit<QuestionListFilters, "folderId" | "cursor">;
   onItemsLoaded?: (items: QuestionListItem[]) => void;
   onMutated?: (deletedId?: string) => void;
+  /** Called when the user clicks "Edit" on a row — parent opens PasteMapDialog. */
+  onEditQuestion?: (q: QuestionListItem) => void;
   canEdit?: boolean;
   user?: UserRecord | null;
 }) {
@@ -315,7 +305,6 @@ export function QuestionListPanel({
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const folder = filters.folderId ? findNode(tree, filters.folderId) : null;
-  const flatFolders = flattenTree(tree);
 
   function canEditQuestion(q: QuestionListItem): boolean {
     if (!canEdit) return false;
@@ -448,23 +437,6 @@ export function QuestionListPanel({
     [load, onMutated],
   );
 
-  const moveQuestion = useCallback(
-    async (q: QuestionListItem, destFolderId: string) => {
-      if (q.folderId === destFolderId) return;
-      const destName = findNode(tree, destFolderId)?.name ?? "folder";
-      setItems((prev) => prev.filter((it) => it._id !== q._id));
-      try {
-        await questionsApi.update(q._id, { folderId: destFolderId });
-        toast.success(`Moved to "${destName}"`);
-        onMutated?.();
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Failed to move");
-        load();
-      }
-    },
-    [load, onMutated, tree],
-  );
-
   const deleteQuestion = useCallback(
     async (q: QuestionListItem) => {
       // Open the confirm dialog instead of window.confirm
@@ -558,9 +530,8 @@ export function QuestionListPanel({
                     onSelectQuestion={onSelectQuestion}
                     toggleFavorite={toggleFavorite}
                     changeStatus={changeStatus}
-                    moveQuestion={moveQuestion}
+                    editQuestion={(row) => onEditQuestion?.(row)}
                     deleteQuestion={deleteQuestion}
-                    flatFolders={flatFolders}
                     isDragDisabled={!isDndEnabled || !canEditQuestion(q)}
                   />
                 ))}
