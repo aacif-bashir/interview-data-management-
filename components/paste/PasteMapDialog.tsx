@@ -24,7 +24,7 @@ import { TagsInput } from "@/components/questions/TagsInput";
 import { QuillEditor } from "./QuillEditor";
 import { PreviewTable } from "./PreviewTable";
 import { countMismatch } from "@/lib/paste/zip";
-import { quillHtmlToMarkdown, isQuillEmpty } from "@/lib/paste/quillToMarkdown";
+import { quillHtmlToMarkdown, isQuillEmpty, markdownToQuillHtml } from "@/lib/paste/quillToMarkdown";
 import { cn } from "@/lib/utils";
 import { questionsApi } from "@/lib/api-client";
 import type { DuplicateMatch, FolderTreeNode, QuestionDTO, QuestionListItem, QuestionStatus, UserRecord } from "@/types";
@@ -60,6 +60,10 @@ export function PasteMapDialog({
   const [answers, setAnswers] = useState<string[]>([]);
 
   const [folderId, setFolderId] = useState<string | null>(defaultFolderId);
+  const [tags, setTags] = useState<string[]>([]);
+  const [status, setStatus] = useState<QuestionStatus>("not_studied");
+  const [allowUnmatched, setAllowUnmatched] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const isEditMode = Boolean(editQuestion);
 
@@ -75,16 +79,16 @@ export function PasteMapDialog({
     if ('question' in editQuestion) {
       // Already a full QuestionDTO — use it directly.
       // eslint-disable-next-line react-hooks/set-state-in-effect -- pre-populating edit mode from prop
-      setQText((editQuestion as QuestionDTO).question ?? '');
+      setQText(markdownToQuillHtml((editQuestion as QuestionDTO).question ?? ''));
       // eslint-disable-next-line react-hooks/set-state-in-effect -- pre-populating edit mode from prop
-      setAText((editQuestion as QuestionDTO).answer ?? '');
+      setAText(markdownToQuillHtml((editQuestion as QuestionDTO).answer ?? ''));
     } else {
       // QuestionListItem — fetch the full detail from the API.
       questionsApi.get(editQuestion._id).then((dto) => {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch after dialog opens
-        setQText(dto.question ?? '');
+        setQText(markdownToQuillHtml(dto.question ?? ''));
         // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch after dialog opens
-        setAText(dto.answer ?? '');
+        setAText(markdownToQuillHtml(dto.answer ?? ''));
         // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch after dialog opens
         setTags(dto.tags ?? []);
       }).catch(() => {
@@ -92,15 +96,7 @@ export function PasteMapDialog({
       });
     }
   }, [open, defaultFolderId, editQuestion]);
-  const [tags, setTags] = useState<string[]>([]);
-  const [status, setStatus] = useState<QuestionStatus>("not_studied");
-  const [allowUnmatched, setAllowUnmatched] = useState(false);
-  const [saving, setSaving] = useState(false);
 
-  /**
-   * For editor users, restrict the folder picker to only folders they created.
-   * Admins and viewers see the full tree (viewers can't reach this dialog anyway).
-   */
   const filteredTree = useMemo(() => {
     if (!user || user.role !== "editor") return tree;
     const filterNodes = (nodes: FolderTreeNode[]): FolderTreeNode[] =>

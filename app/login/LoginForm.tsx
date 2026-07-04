@@ -206,7 +206,7 @@ export function LoginForm() {
       <div className="text-center text-sm">
         {mode === "login" ? (
           <span className="text-muted-foreground">
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <button
               type="button"
               className="font-medium text-primary hover:underline"
