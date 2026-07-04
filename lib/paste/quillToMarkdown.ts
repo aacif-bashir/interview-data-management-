@@ -7,8 +7,28 @@
  * call this during SSR — it's only invoked in goToPreview).
  */
 import TurndownService from "turndown";
+import { unified } from "unified";
+import remarkParse from "remark-parse";
+import remarkGfm from "remark-gfm";
+import remarkRehype from "remark-rehype";
+import rehypeRaw from "rehype-raw";
+import rehypeStringify from "rehype-stringify";
 
 let _td: TurndownService | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _mdProcessor: any = null;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getMarkdownProcessor(): any {
+  if (_mdProcessor) return _mdProcessor;
+  _mdProcessor = unified()
+    .use(remarkParse)
+    .use(remarkGfm)
+    .use(remarkRehype, { allowDangerousHtml: true })
+    .use(rehypeRaw)
+    .use(rehypeStringify);
+  return _mdProcessor;
+}
 
 function getTurndown(): TurndownService {
   if (_td) return _td;
@@ -31,7 +51,8 @@ function getTurndown(): TurndownService {
       node.nodeName === "PRE" &&
       (node as HTMLElement).classList.contains("ql-syntax"),
     replacement: (content, node) => {
-      const lang = (node as HTMLElement).dataset.language?.trim() ?? "";
+      const el = node as HTMLElement;
+      const lang = el.dataset?.language?.trim() ?? el.getAttribute?.("data-language")?.trim() ?? "";
       // content may still have stray \n from Turndown — trim to be safe
       return `\`\`\`${lang}\n${content.trim()}\n\`\`\``;
     },
@@ -225,3 +246,73 @@ export function quillHtmlToMarkdown(html: string): string {
   const md = getTurndown().turndown(preprocessed).trim();
   return collapseFenceBlankLines(md);
 }
+
+/**
+ * Converts a raw Markdown string (such as one loaded from MongoDB when editing
+ * an existing question) into clean Quill HTML so React Quill renders lists,
+ * formatting, and code blocks correctly instead of collapsing it into unstyled text.
+ */
+export function markdownToQuillHtml(markdown: string): string {
+  if (!markdown?.trim()) return "";
+  if (isQuillEmpty(markdown)) return "";
+
+  // If it is already Quill HTML starting with tags like <p>, <pre>, <ol>, <ul>, etc., leave as is.
+  if (/^\s*<(p|pre|ol|ul|h[1-6]|blockquote|div)/i.test(markdown)) {
+    return markdown;
+  }
+
+  try {
+    const html = getMarkdownProcessor().processSync(markdown).toString();
+
+    if (typeof window === "undefined") {
+      return html; // SSR guard
+    }
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(`<body>${html}</body>`, "text/html");
+    const body = doc.body;
+
+    // 1. Transform <pre><code class="language-xxx"> into <pre class="ql-syntax" data-language="xxx">
+    const preNodes = body.querySelectorAll("pre");
+    preNodes.forEach((pre) => {
+      const code = pre.querySelector("code");
+      if (code) {
+        const match = code.className.match(/language-(\w+)/);
+        const lang = match ? match[1] : "";
+        pre.className = "ql-syntax";
+        if (lang) pre.setAttribute("data-language", lang);
+        pre.textContent = code.textContent;
+      } else if (!pre.classList.contains("ql-syntax")) {
+        pre.className = "ql-syntax";
+      }
+    });
+
+    // 2. Transform single newlines inside <p> into separate <p> elements
+    // so line breaks in user markdown aren't collapsed into spaces by Quill
+    const pNodes = body.querySelectorAll("p");
+    pNodes.forEach((p) => {
+      const text = p.innerHTML;
+      if (text.includes("\n")) {
+        const lines = text.split("\n").filter((l) => l.trim() !== "");
+        if (lines.length > 1) {
+          const frag = doc.createDocumentFragment();
+          lines.forEach((line) => {
+            const newP = doc.createElement("p");
+            newP.innerHTML = line;
+            frag.appendChild(newP);
+          });
+          p.parentNode?.replaceChild(frag, p);
+        }
+      }
+    });
+
+    return body.innerHTML;
+  } catch (e) {
+    console.error("Failed to convert markdown to Quill HTML:", e);
+    return markdown
+      .split("\n\n")
+      .map((block) => `<p>${block}</p>`)
+      .join("");
+  }
+}
+

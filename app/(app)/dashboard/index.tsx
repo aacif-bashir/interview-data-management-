@@ -127,7 +127,7 @@ export function Dashboard({ user, tree = [] }: { user: UserRecord | null; tree?:
             Good Morning, {user?.displayName || "User"}
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Let's continue your interview preparation.
+            Let&apos;s continue your interview preparation.
           </Typography>
         </Box>
 
@@ -216,7 +216,7 @@ export function Dashboard({ user, tree = [] }: { user: UserRecord | null; tree?:
                 <Card sx={{ height: "100%" }}>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>
-                      Today's Goal
+                      Today&apos;s Goal
                     </Typography>
                     <Box sx={{ mt: 3, mb: 4 }}>
                       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
