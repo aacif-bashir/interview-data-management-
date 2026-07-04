@@ -122,7 +122,7 @@ export function Dashboard({ user, tree = [] }: { user: UserRecord | null; tree?:
     <ThemeProvider theme={muiTheme}>
       <Box sx={{ p: { xs: 3, md: 5 }, height: "100%", overflowY: "auto", bgcolor: "transparent" }}>
         {/* Welcome Section */}
-        <Box mb={5}>
+        <Box sx={{ mb: 5 }}>
           <Typography variant="h4" gutterBottom>
             Good Morning, {user?.displayName || "User"}
           </Typography>
@@ -132,7 +132,7 @@ export function Dashboard({ user, tree = [] }: { user: UserRecord | null; tree?:
         </Box>
 
         {/* Search */}
-        <Box mb={5}>
+        <Box sx={{ mb: 5 }}>
           <TextField
             fullWidth
             placeholder="Search folders, questions, answers, tags..."
@@ -221,7 +221,7 @@ export function Dashboard({ user, tree = [] }: { user: UserRecord | null; tree?:
                     <Box sx={{ mt: 3, mb: 4 }}>
                       <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
                         <Typography variant="body2" color="text.secondary">Progress</Typography>
-                        <Typography variant="body2" fontWeight={600}>6 / 10</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>6 / 10</Typography>
                       </Box>
                       <LinearProgress variant="determinate" value={60} sx={{ height: 8, borderRadius: 4 }} />
                     </Box>
@@ -277,7 +277,7 @@ export function Dashboard({ user, tree = [] }: { user: UserRecord | null; tree?:
                     { q: "Event Loop in JS", date: "Oct 12", status: "Low" },
                   ].map((item, i) => (
                     <Box key={i} sx={{ py: 1.5, borderBottom: i < 3 ? 1 : 0, borderColor: "divider" }}>
-                      <Typography variant="body2" fontWeight={500} noWrap>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap>
                         {item.q}
                       </Typography>
                       <Box sx={{ display: "flex", justifyContent: "space-between", mt: 1, alignItems: "center" }}>
