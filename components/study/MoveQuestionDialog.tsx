@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { FolderPicker } from "@/components/folders/FolderPicker";
+import { FolderPicker } from "@/components/study-library/FolderPicker";
 import { questionsApi } from "@/lib/api-client";
 import { findNode } from "@/lib/tree-utils";
 import type { FolderTreeNode, QuestionDTO } from "@/types";
