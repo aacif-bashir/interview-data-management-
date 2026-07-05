@@ -62,29 +62,32 @@ export function QuillEditor({
     const selected: string =
       range && range.length > 0 ? quill.getText(range.index, range.length) : "// code here";
 
-    const fence = "```";
-    // Build: \n```\ncode\n```\n
-    const block = `\n${fence}\n${selected}\n${fence}\n`;
+    const openFence = "```ts";
+    const closeFence = "```";
+    // Build: \n```ts\ncode\n```\n
+    const block = `\n${openFence}\n${selected}\n${closeFence}\n`;
 
     if (range && range.length > 0) quill.deleteText(range.index, range.length);
     quill.insertText(index, block, "user");
 
     // Place cursor on the code content line
-    const contentStart = index + 1 + fence.length + 1; // after \n```\n
+    const contentStart = index + 1 + openFence.length + 1; // after \n```ts\n
     quill.setSelection(contentStart, selected.length);
   }, []);
 
-  /** Insert inline code backticks around selection. */
+  /** Insert inline code around selection using native Quill formatting. */
   const insertInlineCode = useCallback(() => {
     const quill = getQuill();
     if (!quill) return;
     const range = quill.getSelection(true);
-    const index: number = range ? range.index : quill.getLength();
-    const selected: string =
-      range && range.length > 0 ? quill.getText(range.index, range.length) : "code";
-    if (range && range.length > 0) quill.deleteText(range.index, range.length);
-    quill.insertText(index, `\`${selected}\``, "user");
-    quill.setSelection(index + 1, selected.length);
+    if (range && range.length > 0) {
+      const currentFormat = quill.getFormat(range);
+      quill.format("code", !currentFormat?.code, "user");
+    } else {
+      const index: number = range ? range.index : quill.getLength();
+      quill.insertText(index, "code", { code: true }, "user");
+      quill.setSelection(index, 4);
+    }
   }, []);
 
   // Quill toolbar modules (using a custom container for integrated tools).
