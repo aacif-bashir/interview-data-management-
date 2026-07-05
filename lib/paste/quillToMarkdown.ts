@@ -48,13 +48,21 @@ function getTurndown(): TurndownService {
   // preprocessQuillHtml() sets when it reconstructs fences from paragraphs.
   _td.addRule("quillCodeBlock", {
     filter: (node) =>
-      node.nodeName === "PRE" &&
-      (node as HTMLElement).classList.contains("ql-syntax"),
-    replacement: (content, node) => {
+      node.nodeName === "PRE" ||
+      ((node as HTMLElement).classList && (node as HTMLElement).classList.contains("ql-syntax")),
+    replacement: (_content, node) => {
       const el = node as HTMLElement;
-      const lang = el.dataset?.language?.trim() ?? el.getAttribute?.("data-language")?.trim() ?? "";
-      // content may still have stray \n from Turndown — trim to be safe
-      return `\`\`\`${lang}\n${content.trim()}\n\`\`\``;
+      let lang = el.dataset?.language?.trim() || el.getAttribute?.("data-language")?.trim();
+      if (!lang) {
+        const codeChild = el.querySelector?.("code");
+        if (codeChild) {
+          const match = codeChild.className.match(/language-(\w+)/);
+          if (match) lang = match[1];
+        }
+      }
+      lang = lang || "ts";
+      const code = el.textContent ?? "";
+      return `\n\n\`\`\`${lang}\n${code.replace(/\s+$/, "")}\n\`\`\`\n\n`;
     },
   });
 
@@ -166,10 +174,10 @@ function preprocessQuillHtml(html: string): string {
 
     // ── Paragraph whose text looks like an opening fence: ```lang ──
     const text = el.textContent ?? "";
-    const fenceOpen = text.match(/^```(\w*)$/);
+    const fenceOpen = text.trim().match(/^```([a-zA-Z0-9_-]*)$/);
 
     if (el.nodeName === "P" && fenceOpen) {
-      const lang = fenceOpen[1] ?? "";
+      const lang = fenceOpen[1] || "ts";
       const codeLines: string[] = [];
       i++;
 
@@ -193,7 +201,7 @@ function preprocessQuillHtml(html: string): string {
       // Build a proper <pre class="ql-syntax" data-language="lang"> node
       const pre = doc.createElement("pre");
       pre.className = "ql-syntax";
-      if (lang) pre.dataset.language = lang;
+      pre.dataset.language = lang;
       pre.textContent = codeLines.join("\n");
       result.push(pre);
       continue;
