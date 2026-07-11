@@ -74,12 +74,21 @@ export function FolderSidebar({
             Dashboard
           </Link>
 
-          <button
+          <div
+            role="button"
+            tabIndex={0}
             onClick={() => {
               router.push("/studylibrary");
               setManualOverride(true);
             }}
-            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm font-medium text-sidebar-foreground/90 transition-colors hover:bg-sidebar-accent hover:text-foreground"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                router.push("/studylibrary");
+                setManualOverride(true);
+              }
+            }}
+            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm font-medium text-sidebar-foreground/90 transition-colors hover:bg-sidebar-accent hover:text-foreground cursor-pointer"
           >
             <div className="flex items-center gap-2">
               <Library className="size-4" />
@@ -97,7 +106,7 @@ export function FolderSidebar({
                 <ChevronRight className="size-3.5" />
               )}
             </button>
-          </button>
+          </div>
 
           {studyLibraryOpen && (
             <div className="mt-1 pl-4 flex flex-col gap-0.5 border-l border-border/10 ml-3 mb-1">
@@ -135,10 +144,10 @@ export function FolderSidebar({
                     createdBy={
                       user
                         ? {
-                            id: user.id,
-                            name: user.displayName,
-                            email: user.email,
-                          }
+                          id: user.id,
+                          name: user.displayName,
+                          email: user.email,
+                        }
                         : null
                     }
                   />

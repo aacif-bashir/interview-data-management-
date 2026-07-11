@@ -537,7 +537,7 @@ export const questionsApi = {
     return { ok: true };
   },
 
-  async bulkCreate(input: { folderId: string; pairs: { question: string; answer: string }[]; tags?: string[]; status?: QuestionStatus; createdBy?: { id: string; name: string; email: string } | null }): Promise<{ insertedCount: number; firstOrder: number; lastOrder: number }> {
+  async bulkCreate(input: { folderId: string; pairs: { question: string; answer: string }[]; tags?: string[]; status?: QuestionStatus; createdBy?: { id: string; name: string; email: string } | null }): Promise<{ insertedCount: number; firstOrder: number; lastOrder: number; firstId: string | null }> {
     await ensureFirebaseAuthReady();
     const colName = await getCollectionName(input.folderId);
     const startOrder = await nextOrder(colName);
@@ -547,10 +547,12 @@ export const questionsApi = {
     const BATCH_SIZE = 490;
     let batch = writeBatch(db);
     let ops = 0;
+    const createdIds: string[] = [];
 
     for (let i = 0; i < input.pairs.length; i++) {
       const p = input.pairs[i];
       const qRef = doc(folderQuestionsCol(colName));
+      createdIds.push(qRef.id);
       const hash = await sha256(p.question);
       batch.set(qRef, {
         folderId: input.folderId, collectionName: colName,
@@ -576,6 +578,7 @@ export const questionsApi = {
       insertedCount: input.pairs.length,
       firstOrder: startOrder,
       lastOrder: startOrder + (input.pairs.length - 1) * ORDER_GAP,
+      firstId: createdIds[0] ?? null,
     };
   },
 

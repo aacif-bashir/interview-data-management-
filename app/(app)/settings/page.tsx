@@ -13,9 +13,7 @@ export default async function SettingsPage() {
   const userRole = user?.role ?? "viewer";
 
   const tree = await getFolderTree();
-  // Using mode="settings" would ideally show settings instead of question lists, 
-  // but we fallback to Workspace for now to keep the layout consistent.
   return (
-    <Workspace initialTree={tree} userRole={userRole} user={user} />
+    <Workspace initialTree={tree} userRole={userRole} user={user} mode="settings" />
   );
 }

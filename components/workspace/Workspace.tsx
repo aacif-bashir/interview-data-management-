@@ -2,7 +2,6 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { FolderTree, ListChecks, BookOpen } from "lucide-react";
 import {
   ResizablePanel,
   ResizablePanelGroup,
@@ -10,7 +9,8 @@ import {
 } from "@/components/ui/resizable";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { cn } from "@/lib/utils";
-import { foldersApi } from "@/lib/api-client";
+import { MobileBottomNav, type StudyView } from "@/components/workspace/MobileBottomNav";
+import { foldersApi, questionsApi } from "@/lib/api-client";
 import type {
   FolderTreeNode,
   QuestionListFilters,
@@ -46,9 +46,7 @@ export function Workspace({
   const isMobile = useIsMobile();
   // On mobile the three panels become a single swappable view driven by a
   // bottom tab bar; on desktop this is ignored and all three render at once.
-  const [mobileView, setMobileView] = useState<
-    "folders" | "questions" | "study"
-  >("questions");
+  const [mobileView, setMobileView] = useState<StudyView>("questions");
 
   const [tree, setTree] = useState<FolderTreeNode[]>(initialTree);
   // Use initialFolderId if provided, otherwise default to first root folder.
@@ -96,6 +94,36 @@ export function Workspace({
     () => ({ ...filters, folderId: selectedFolderId ?? undefined }),
     [filters, selectedFolderId]
   );
+
+  /**
+   * After a create or edit save, fetch the saved question and select it so the
+   * study panel opens immediately without needing a manual click.
+   * On mobile it also switches to the study view.
+   */
+  const selectAfterSave = useCallback(async (questionId: string) => {
+    try {
+      const dto = await questionsApi.get(questionId);
+      const listItem: QuestionListItem = {
+        _id: dto._id,
+        folderId: dto.folderId,
+        collectionName: dto.collectionName,
+        title: dto.title,
+        status: dto.status,
+        favorite: dto.favorite,
+        tags: dto.tags,
+        order: dto.order,
+        createdAt: dto.createdAt,
+        updatedAt: dto.updatedAt,
+      };
+      setSelectedQuestion(listItem);
+      // Switch the selected folder to wherever the question lives, so the list
+      // panel also shows it after the refresh.
+      setSelectedFolderId(dto.folderId);
+      setMobileView("study");
+    } catch {
+      // Non-fatal — the list still refreshes; user can click manually.
+    }
+  }, []);
 
   const folderSidebar = (
     <FolderSidebar
@@ -179,42 +207,44 @@ export function Workspace({
       defaultFolderId={selectedFolderId}
       user={user}
       editQuestion={editingQuestion}
-      onSaved={() => {
+      onSaved={async (questionId) => {
         setEditingQuestion(null);
         refreshList();
         refreshTree();
+        if (questionId) {
+          await selectAfterSave(questionId);
+        }
       }}
     />
   );
 
   // --- Mobile: a single active panel + bottom tab bar. ---
   if (isMobile) {
+    // Dashboard view
     if (mode === "dashboard") {
       return (
         <div className="flex h-dvh flex-col overflow-hidden">
           <div className="flex-1 min-h-0 overflow-auto bg-background">
             <Dashboard user={user} tree={tree} />
           </div>
-          {/* We might want a way to get back to the sidebar, but for now we'll just show the dashboard. 
-              In a real app, we'd have a top nav with a hamburger menu for the sidebar. */}
+          <MobileBottomNav />
         </div>
       );
     }
+
+    // Settings view
     if (mode === "settings") {
       return (
         <div className="flex h-dvh flex-col overflow-hidden">
           <div className="flex-1 min-h-0 overflow-auto bg-background p-8 flex items-center justify-center">
             <p className="text-muted-foreground">Settings Page</p>
           </div>
+          <MobileBottomNav />
         </div>
       );
     }
 
-    const tabs = [
-      { id: "folders" as const, label: "Folders", icon: FolderTree },
-      { id: "questions" as const, label: "Questions", icon: ListChecks },
-      { id: "study" as const, label: "Study", icon: BookOpen },
-    ];
+    // Workspace / study-library view
     return (
       <div className="flex h-dvh flex-col overflow-hidden">
         <div className="min-h-0 flex-1 overflow-hidden">
@@ -231,29 +261,10 @@ export function Workspace({
           </div>
         </div>
 
-        <nav className="flex shrink-0 items-stretch border-t bg-sidebar">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const active = mobileView === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setMobileView(tab.id)}
-                className={cn(
-                  "flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition-colors",
-                  active
-                    ? "text-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-                aria-current={active ? "page" : undefined}
-              >
-                <Icon className="size-5" />
-                {tab.label}
-              </button>
-            );
-          })}
-        </nav>
+        <MobileBottomNav
+          studyView={mobileView}
+          onStudyViewChange={setMobileView}
+        />
 
         {pasteDialog}
       </div>
