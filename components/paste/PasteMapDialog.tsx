@@ -257,7 +257,7 @@ export function PasteMapDialog({
       toast.success(`Saved ${res.insertedCount} question(s)`);
       reset();
       onOpenChange(false);
-      onSaved();
+      onSaved(res.firstId ?? undefined);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to save");
       setSaving(false);
