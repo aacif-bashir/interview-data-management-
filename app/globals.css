@@ -187,13 +187,23 @@
   @apply border-l-2 border-border pl-4 italic text-muted-foreground my-3;
 }
 
-.md table {
+.md table,
+.quill-wrapper .ql-editor table {
   @apply w-full border-collapse text-sm my-3;
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: normal;
 }
 
 .md th,
-.md td {
+.md td,
+.quill-wrapper .ql-editor th,
+.quill-wrapper .ql-editor td {
   @apply border border-border px-2 py-1 text-left;
+  min-width: 120px;
+  word-break: normal;
+  overflow-wrap: anywhere;
 }
 
 .md hr {
