@@ -121,9 +121,11 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+
   html {
     @apply font-sans;
   }
@@ -133,7 +135,7 @@
    whose intrinsic width can exceed the panel — forcing horizontal overflow of
    the whole layout instead of scrolling within the viewport. Pin it to the
    viewport width so wide children (code blocks, long words) stay contained. */
-[data-slot="scroll-area-viewport"] > div {
+[data-slot="scroll-area-viewport"]>div {
   display: block !important;
   width: 100%;
   min-width: 0;
@@ -148,61 +150,78 @@
   word-break: keep-all;
   hyphens: none;
 }
-.md > * + * {
+
+.md>*+* {
   @apply mt-3;
 }
+
 .md h1 {
   @apply text-xl font-semibold mt-5 mb-2;
 }
+
 .md h2 {
   @apply text-lg font-semibold mt-4 mb-2;
 }
+
 .md h3 {
   @apply text-base font-semibold mt-3 mb-1;
 }
+
 .md p {
   @apply my-2;
 }
+
 .md ul {
   @apply list-disc pl-6 my-2 space-y-1;
 }
+
 .md ol {
   @apply list-decimal pl-6 my-2 space-y-1;
 }
+
 .md a {
   @apply text-primary underline underline-offset-2;
 }
+
 .md blockquote {
   @apply border-l-2 border-border pl-4 italic text-muted-foreground my-3;
 }
+
 .md table {
   @apply w-full border-collapse text-sm my-3;
 }
+
 .md th,
 .md td {
   @apply border border-border px-2 py-1 text-left;
 }
+
 .md hr {
   @apply my-4 border-border;
 }
+
 /* Inline code (not inside a shiki <pre>). */
-.md :not(pre) > code {
+.md :not(pre)>code {
   @apply rounded bg-muted px-1.5 py-0.5 font-mono text-[0.85em];
 }
+
 /* Shiki fenced code blocks. rehype-pretty-code emits <pre data-language=...>. */
 .md pre {
   @apply max-w-full overflow-x-auto rounded-lg border border-border p-4 my-3 text-sm leading-relaxed;
   background-color: var(--shiki-bg, var(--muted));
 }
+
 .md pre code {
   @apply font-mono;
   counter-reset: line;
 }
+
 /* Shiki dual-theme. rehype-pretty-code emits per-token --shiki-light /
    --shiki-dark CSS variables; we pick the right one per color scheme. */
 .md pre span {
   color: var(--shiki-light);
 }
+
 .dark .md pre span {
   color: var(--shiki-dark);
 }
@@ -215,6 +234,7 @@
   background: var(--background);
   padding: 6px 8px;
 }
+
 .quill-wrapper .ql-container.ql-snow {
   border-color: var(--border);
   border-bottom-left-radius: var(--radius-md);
@@ -224,6 +244,7 @@
   flex: 1;
   overflow-y: auto;
 }
+
 .quill-wrapper .ql-editor {
   min-height: 28vh;
   max-height: 32vh;
@@ -233,28 +254,105 @@
   word-break: keep-all;
   hyphens: none;
 }
+
 .quill-wrapper .ql-editor.ql-blank::before {
   color: var(--muted-foreground);
   font-style: normal;
 }
+
 /* Dark-mode toolbar icons */
 .dark .quill-wrapper .ql-stroke {
   stroke: var(--foreground) !important;
 }
+
 .dark .quill-wrapper .ql-fill {
   fill: var(--foreground) !important;
 }
+
 .dark .quill-wrapper .ql-picker-label,
 .dark .quill-wrapper .ql-picker-options {
   color: var(--foreground);
   background: var(--card);
   border-color: var(--border);
 }
+
 .dark .quill-wrapper .ql-toolbar button:hover .ql-stroke,
 .dark .quill-wrapper .ql-toolbar button.ql-active .ql-stroke {
   stroke: var(--primary) !important;
 }
+
 .dark .quill-wrapper .ql-toolbar button:hover .ql-fill,
 .dark .quill-wrapper .ql-toolbar button.ql-active .ql-fill {
   fill: var(--primary) !important;
+}
+
+/* Custom size labels for Quill toolbar */
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="10px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="10px"]::before {
+  content: "10";
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="12px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="12px"]::before {
+  content: "12";
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="14px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="14px"]::before {
+  content: "14";
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="16px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="16px"]::before {
+  content: "16";
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="18px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="18px"]::before {
+  content: "18";
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="20px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="20px"]::before {
+  content: "20";
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="21px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="21px"]::before {
+  content: "21";
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="22px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="22px"]::before {
+  content: "22";
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="24px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="24px"]::before {
+  content: "24";
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="28px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="28px"]::before {
+  content: "28";
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="32px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="32px"]::before {
+  content: "32";
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="34px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="34px"]::before {
+  content: "34";
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="36px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="36px"]::before {
+  content: "36";
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-label::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item::before {
+  content: "16";
 }

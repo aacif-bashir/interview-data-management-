@@ -7,6 +7,8 @@
  * call this during SSR — it's only invoked in goToPreview).
  */
 import TurndownService from "turndown";
+// @ts-expect-error - no types available
+import { tables } from "turndown-plugin-gfm";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
@@ -42,6 +44,8 @@ function getTurndown(): TurndownService {
     strongDelimiter: "**",
     linkStyle: "inlined",
   });
+
+  _td.use(tables);
 
   // Quill wraps code blocks in <pre class="ql-syntax">…</pre>.
   // We map them to fenced blocks. The language comes from data-language which
