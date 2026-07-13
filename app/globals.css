@@ -145,7 +145,8 @@
   /* Wrap long unbreakable tokens (URLs, long identifiers) instead of letting
      them push the panel wider than the viewport. */
   overflow-wrap: break-word;
-  word-break: break-word;
+  word-break: keep-all;
+  hyphens: none;
 }
 .md > * + * {
   @apply mt-3;
@@ -229,6 +230,8 @@
   overflow-y: auto;
   color: var(--foreground);
   line-height: 1.6;
+  word-break: keep-all;
+  hyphens: none;
 }
 .quill-wrapper .ql-editor.ql-blank::before {
   color: var(--muted-foreground);
