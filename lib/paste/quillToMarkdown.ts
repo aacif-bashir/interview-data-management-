@@ -250,7 +250,9 @@ export function isQuillEmpty(html: string): boolean {
  */
 export function quillHtmlToMarkdown(html: string): string {
   if (isQuillEmpty(html)) return "";
-  const preprocessed = preprocessQuillHtml(html);
+  // Replace non-breaking spaces with regular spaces to prevent line breaking issues
+  const htmlWithNormalSpaces = html.replace(/\u00A0/g, ' ');
+  const preprocessed = preprocessQuillHtml(htmlWithNormalSpaces);
   const md = getTurndown().turndown(preprocessed).trim();
   return collapseFenceBlankLines(md);
 }

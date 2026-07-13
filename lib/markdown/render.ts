@@ -90,6 +90,7 @@ function getProcessor(): Processor {
 /** Render raw markdown to sanitized, syntax-highlighted HTML (server only). */
 export async function renderMarkdown(markdown: string): Promise<string> {
   if (!markdown?.trim()) return "";
-  const file = await getProcessor().process(markdown);
+  const cleanMarkdown = markdown.replace(/\u00A0/g, ' ');
+  const file = await getProcessor().process(cleanMarkdown);
   return String(file);
 }
